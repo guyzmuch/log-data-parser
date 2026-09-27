@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log Data Parser</title>
+  <style>
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --border: #d4d0c8;
+      --text: #1a1a1a;
+      --muted: #6b6560;
+      --accent: #2c5f4a;
+      --accent-hover: #234d3c;
+      --header-bg: #eae7e1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--muted);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 0.75rem 1rem;
+      font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+      border-color: var(--accent);
+    }
+
+    .actions {
+      margin: 0.75rem 0 1.5rem;
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.55rem 1.1rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    button.secondary:hover {
+      background: var(--header-bg);
+      color: var(--text);
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status.error {
+      color: #a33;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+    }
+
+    .table-wrap:empty {
+      display: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+    }
+
+    th, td {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--header-bg);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    td:empty::after {
+      content: "";
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Log Data Parser</h1>
+    <p class="subtitle">Paste CSV data below to parse and display as a table.</p>
+
+    <label for="input">Input</label>
+    <textarea id="input" placeholder='"id","name","bar"&#10;1,alice,&#10;2,"bob",woo'></textarea>
+
+    <div class="actions">
+      <button type="button" id="parse">Parse CSV</button>
+      <button type="button" id="clear" class="secondary">Clear</button>
+      <span id="status" class="status"></span>
+    </div>
+
+    <div id="output"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

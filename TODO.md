@@ -1,0 +1,11 @@
+- parsing data
+- filter columns
+- add a parsing javascript function that return an array of data in javascript, and it should get the different option (timestamp, separator, column) and also we should have an extensive set of test for it... this should be in a external file (for easy separation)
+- at first limit the display to the 5 first line, just to see if  
+- option for data parsing
+- auto detect format parsing
+- option to select column have timestamp parsed as date
+- export to CSV
+- have some preset of common (like aws logs, logstash, etc ...)
+- possibility to save locally some setting if we often parse the same data
+- possibility to have some aggregation of data (like number of error/warn/logs) to easily see

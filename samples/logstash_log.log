@@ -1,0 +1,5 @@
+2026-07-28T17:26:11.482Z web-01 nginx 192.168.1.42 - - [28/Jul/2026:17:26:11 +0000] "GET /api/products?page=2 HTTP/1.1" 200 1842 "-" "Mozilla/5.0" request_id=abc123 duration=0.042
+2026-07-28T17:26:12.103Z web-02 nginx 10.0.4.17 - - [28/Jul/2026:17:26:12 +0000] "POST /api/login HTTP/1.1" 401 321 "-" "Mozilla/5.0" request_id=def456 duration=0.087
+2026-07-28T17:26:13.774Z web-01 nginx 172.16.2.91 - - [28/Jul/2026:17:26:13 +0000] "GET /api/orders/84721 HTTP/1.1" 200 9214 "-" "curl/8.5.0" request_id=ghi789 duration=0.231
+2026-07-28T17:26:14.992Z web-03 nginx 10.0.8.33 - - [28/Jul/2026:17:26:14 +0000] "GET /api/orders/99999 HTTP/1.1" 404 156 "-" "Mozilla/5.0" request_id=jkl012 duration=0.019
+2026-07-28T17:26:16.441Z web-02 nginx 192.168.5.12 - - [28/Jul/2026:17:26:16 +0000] "POST /api/checkout HTTP/1.1" 500 532 "-" "Mozilla/5.0" request_id=mno345 duration=2.847
