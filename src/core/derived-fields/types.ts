@@ -7,7 +7,10 @@ export type IanaTimeZone = string;
 export interface DateDerivedFieldSpec {
   kind: "date";
   sourceFieldKey: string;
-  representation: "raw" | "iso" | "timezone";
+  // No "raw" representation: it would just duplicate the source Field's own
+  // value as a second column, which is never useful — the source Field is
+  // already right there.
+  representation: "iso" | "timezone";
   /** IANA zone (e.g. "Europe/Paris"). Ignored unless representation is "timezone"; omitted there means browser-local. */
   timezone?: IanaTimeZone;
 }

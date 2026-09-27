@@ -27,6 +27,13 @@ export function DataTable() {
           <TableRow key={record.index}>
             {visibleFieldKeys.map((key) => {
               const field = record.fields.find((f) => f.key === key);
+              if (field?.parseError) {
+                return (
+                  <TableCell key={key} className="text-destructive">
+                    Invalid parse
+                  </TableCell>
+                );
+              }
               return <TableCell key={key}>{field?.value ?? ""}</TableCell>;
             })}
           </TableRow>

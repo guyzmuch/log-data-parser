@@ -31,3 +31,5 @@ Isn't it what logstash is actually doing??
 Have the posibility to upload multipe data, and join then via column or by data (i have difficulties to see rhis, but like group result from the second data that contain some info, to the first data. Like if the first data has a column "entity_id", rhen on the second data, if it contains this value, it can be listed under the line. It might help group data from the second data set)
 That could be cool if we could connect it to a live logs, like connect it to a terminal output. Maybe thos could be done via a command line, where we forward the output of a terminal via stream into the interface
 v1's delimiter split is a plain string split, not quote-aware (a delimiter inside a quoted CSV value, e.g. `a,"b,c",d`, splits wrong). Could swap in a real CSV parser package specifically for uploaded `.csv` files later, while keeping the simple splitter for pasted/raw log text.
+
+since we detect cell, maybe notify column that only have empty data
