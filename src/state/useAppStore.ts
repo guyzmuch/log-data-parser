@@ -6,6 +6,7 @@ import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
 import type { Profile, SearchState } from "@/core/profile/types";
+import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
 
 interface AppState {
   dataset: Dataset | null;
@@ -17,6 +18,10 @@ interface AppState {
   activeProfile: Profile | null;
   /** Session-only; never persisted to the Profile (see Hidden Record in CONTEXT.md). */
   hiddenRecordIndexes: Set<number>;
+  /** Rows currently selected (via click/ctrl-click/shift-click), candidates for hiding — not the same as hiddenRecordIndexes. */
+  selectedRecordIndexes: Set<number>;
+  /** The last plain- or ctrl-clicked row index, used as the shift-click range anchor. */
+  selectionAnchorIndex: number | null;
   /** Profiles available to pick from, loaded from localStorage. */
   savedProfiles: Profile[];
 
@@ -34,6 +39,22 @@ interface AppState {
   moveFieldDown: (key: string) => void;
   renameField: (key: string, label: string) => void;
   setSearchState: (search: SearchState) => void;
+
+  /**
+   * Updates row selection for a click on this row, per the plain/ctrl/shift rules in
+   * computeRangeSelection. `visibleIndexesInOrder` must be the currently-rendered Record
+   * indexes in order (after hidden + search filtering) so shift-click ranges never sweep
+   * in a row that isn't actually visible.
+   */
+  selectRecord: (index: number, modifiers: SelectionModifiers, visibleIndexesInOrder: number[]) => void;
+  /** Adds every currently-visible Record to the selection (leaves already-selected-but-not-visible rows untouched). */
+  selectAllVisible: (visibleIndexesInOrder: number[]) => void;
+  /** Removes every currently-visible Record from the selection (leaves selected-but-not-visible rows untouched). */
+  deselectAllVisible: (visibleIndexesInOrder: number[]) => void;
+  /** Moves the current selection into hiddenRecordIndexes and clears the selection. */
+  hideSelectedRecords: () => void;
+  /** Clears hiddenRecordIndexes, making every Record visible again. */
+  unhideAllRecords: () => void;
 
   /** Adds the default ISO/local-time pair for a Field, if it doesn't already have Derived Fields. No-op otherwise. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
@@ -74,6 +95,8 @@ export const useAppStore = create<AppState>((set, get) => {
     records: [],
     activeProfile: null,
     hiddenRecordIndexes: new Set(),
+    selectedRecordIndexes: new Set(),
+    selectionAnchorIndex: null,
     savedProfiles: [],
 
     loadDataset: (rawText) => {
@@ -84,6 +107,8 @@ export const useAppStore = create<AppState>((set, get) => {
         fieldNames: [],
         records: [],
         hiddenRecordIndexes: new Set(),
+        selectedRecordIndexes: new Set(),
+        selectionAnchorIndex: null,
         savedProfiles: listProfiles(),
       });
     },
@@ -100,6 +125,8 @@ export const useAppStore = create<AppState>((set, get) => {
         fieldNames: [...baseFieldNames, ...derivedKeys],
         records,
         hiddenRecordIndexes: new Set(),
+        selectedRecordIndexes: new Set(),
+        selectionAnchorIndex: null,
       });
     },
 
@@ -168,6 +195,41 @@ export const useAppStore = create<AppState>((set, get) => {
       const profile = get().activeProfile;
       if (!profile) return;
       set({ activeProfile: { ...profile, display: { ...profile.display, searchState: search } } });
+    },
+
+    selectRecord: (index, modifiers, visibleIndexesInOrder) => {
+      const { selectedRecordIndexes, selectionAnchorIndex } = get();
+      const { selection, anchorIndex } = computeRangeSelection(
+        selectedRecordIndexes,
+        selectionAnchorIndex,
+        index,
+        modifiers,
+        visibleIndexesInOrder,
+      );
+      set({ selectedRecordIndexes: selection, selectionAnchorIndex: anchorIndex });
+    },
+
+    selectAllVisible: (visibleIndexesInOrder) => {
+      const next = new Set(get().selectedRecordIndexes);
+      for (const index of visibleIndexesInOrder) next.add(index);
+      set({ selectedRecordIndexes: next });
+    },
+
+    deselectAllVisible: (visibleIndexesInOrder) => {
+      const next = new Set(get().selectedRecordIndexes);
+      for (const index of visibleIndexesInOrder) next.delete(index);
+      set({ selectedRecordIndexes: next });
+    },
+
+    hideSelectedRecords: () => {
+      const { hiddenRecordIndexes, selectedRecordIndexes } = get();
+      const next = new Set(hiddenRecordIndexes);
+      for (const index of selectedRecordIndexes) next.add(index);
+      set({ hiddenRecordIndexes: next, selectedRecordIndexes: new Set(), selectionAnchorIndex: null });
+    },
+
+    unhideAllRecords: () => {
+      set({ hiddenRecordIndexes: new Set() });
     },
 
     addDefaultDateDerivedFields: (sourceFieldKey) => {
