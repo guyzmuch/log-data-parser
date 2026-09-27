@@ -34,5 +34,11 @@ export function parseDataset(rawText: string, config: ParsingConfig): ParsedData
     records = applyBoundaryTrim(records, config.expectedFieldCount);
   }
 
-  return { fieldNames: fieldNames ?? [], records };
+  // Fall back to whatever Field keys parseRecord actually used (e.g. its
+  // generic "Field N" names) when there's no header row and no explicit
+  // fieldNames — otherwise this would report [] even though every Record
+  // has properly-keyed Fields.
+  const resolvedFieldNames = fieldNames ?? records[0]?.fields.map((field) => field.key) ?? [];
+
+  return { fieldNames: resolvedFieldNames, records };
 }

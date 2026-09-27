@@ -26,6 +26,20 @@ describe("parseDataset", () => {
     expect(result.records[1].fields.map((f) => f.value)).toEqual(["d", "e", "f"]);
   });
 
+  it("reports generic Field N names when there is no header and no explicit fieldNames", () => {
+    // Regression: fieldNames used to stay [] whenever there was no header row,
+    // even though every Record's Fields did have generic "Field N" keys.
+    const result = parseDataset("a,b,c\nd,e,f", baseConfig());
+    expect(result.fieldNames).toEqual(["Field 1", "Field 2", "Field 3"]);
+  });
+
+  it("reports [] fieldNames when boundary trim drops every record", () => {
+    // Two records, both short of expectedFieldCount -> both are boundary records -> both dropped.
+    const result = parseDataset("a\nb", baseConfig({ trimBoundaryPartials: true, expectedFieldCount: 3 }));
+    expect(result.records).toHaveLength(0);
+    expect(result.fieldNames).toEqual([]);
+  });
+
   it("consumes the first line as header names and excludes it from records", () => {
     const result = parseDataset("id,name,active\n1,foo,true\n2,bar,false", baseConfig({ hasHeaderRow: true }));
     expect(result.fieldNames).toEqual(["id", "name", "active"]);
