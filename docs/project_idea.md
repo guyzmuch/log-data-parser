@@ -33,3 +33,14 @@ That could be cool if we could connect it to a live logs, like connect it to a t
 v1's delimiter split is a plain string split, not quote-aware (a delimiter inside a quoted CSV value, e.g. `a,"b,c",d`, splits wrong). Could swap in a real CSV parser package specifically for uploaded `.csv` files later, while keeping the simple splitter for pasted/raw log text.
 
 since we detect cell, maybe notify column that only have empty data
+
+
+## improvement seen while working
+make the interface largeur
+Better ui for column selection
+columns selection should make the "shift" button work to unselect multiple column
+we should have an "hide all" column and "show all" columns button
+we should be able to search/filter column by name to active them or not (like in kibana)
+column should displayed for the top one to the bottom, and we should order the column by drag and drop
+Posibility to save multiple view for one profile
+once the data is parsed, we should remove the insertion fields (or maybe hide it in a tab or something)
