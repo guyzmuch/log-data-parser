@@ -115,6 +115,14 @@ Mostly `src/state/` + `DataTable` interaction layer:
 - `profile-persistence.spec.ts`: save Profile, reload, confirm it's listed; export to JSON, clear localStorage, import back, confirm identical behavior.
 - **Verify:** these specs run against the static-exported `out/` served locally — matching actual Apache deployment, not `next dev`.
 
+### Phase K — Built-in sample Profiles + sample data
+Not designed yet — what goes into each Profile, and what the sample files look like, is a decision for when we're actually at this phase (needs its own scoping pass, likely revisiting real-world format examples for each target). Placeholder scope:
+- A small set of ready-made Profiles ("pre-profile for common parsing" from `docs/project_idea.md`) shipped with the app for common log/data shapes — candidates: plain CSV, Logstash/JSON-line logs, AWS (e.g. CloudTrail or ALB access logs — which AWS format(s) TBD).
+- A matching sample data file per built-in Profile, small enough to commit to the repo, realistic enough to exercise that Profile's parsing config (delimiter/header/quote/trim/derived-timestamp settings).
+- Tests (Vitest) asserting each built-in Profile actually parses its paired sample file into the expected Fields/Record count — regression coverage so a Profile default can't silently drift from the sample it's supposed to handle.
+- Needs a decision on where built-in Profiles live/load from (bundled JSON in the repo vs. seeded into localStorage on first run) and whether they're user-editable copies or fixed presets — revisit `src/core/profile/` structure then.
+- **Verify:** TBD alongside the design pass — likely Vitest for the parse-matches-sample assertions, plus a manual/Playwright check that built-in Profiles show up and are selectable in the Profile-picker UI from Phase E.
+
 ## 2. Sequencing notes
 
 - Phases A–C have no UI and should be fully unit-tested before component work starts — this is where domain-model correctness (Field-vs-Visible-Field separation, Expected Field Count semantics, boundary trim) gets locked in cheaply.
@@ -123,6 +131,7 @@ Mostly `src/state/` + `DataTable` interaction layer:
 - G and H are independent of each other; both depend on D.
 - I depends on G and H's state plus D's display config.
 - J should be written incrementally alongside D–I, with the full golden-path spec assembled once I lands as a regression net.
+- K depends on B (parsing engine, to validate samples parse correctly) and E (Profile picker UI, to surface built-ins) — do it last; it's additive polish, not a blocker for the rest of v1.
 
 ## Critical files
 - `CONTEXT.md` — domain vocabulary, authoritative

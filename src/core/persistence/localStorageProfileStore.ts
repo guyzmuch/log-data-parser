@@ -1,0 +1,72 @@
+import type { Profile } from "@/core/profile/types";
+import { isProfile } from "@/core/profile/validateProfile";
+
+const STORAGE_KEY = "log-data-parser:profiles";
+const SCHEMA_VERSION = 1;
+
+interface ProfileStoreSnapshot {
+  schemaVersion: number;
+  profiles: Profile[];
+}
+
+function emptySnapshot(): ProfileStoreSnapshot {
+  return { schemaVersion: SCHEMA_VERSION, profiles: [] };
+}
+
+function hasLocalStorage(): boolean {
+  return typeof localStorage !== "undefined";
+}
+
+function readSnapshot(): ProfileStoreSnapshot {
+  if (!hasLocalStorage()) return emptySnapshot();
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return emptySnapshot();
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || !Array.isArray((parsed as { profiles?: unknown }).profiles)) {
+      return emptySnapshot();
+    }
+    // Drop any corrupt entries individually rather than discarding the whole store.
+    const profiles = (parsed as { profiles: unknown[] }).profiles.filter(isProfile);
+    return { schemaVersion: SCHEMA_VERSION, profiles };
+  } catch {
+    return emptySnapshot();
+  }
+}
+
+function writeSnapshot(snapshot: ProfileStoreSnapshot): void {
+  if (!hasLocalStorage()) return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+}
+
+export function listProfiles(): Profile[] {
+  return readSnapshot().profiles;
+}
+
+export function loadProfile(id: string): Profile | undefined {
+  return readSnapshot().profiles.find((profile) => profile.id === id);
+}
+
+/** Inserts a new Profile, or replaces the existing one with the same id. */
+export function saveProfile(profile: Profile): void {
+  const snapshot = readSnapshot();
+  const index = snapshot.profiles.findIndex((p) => p.id === profile.id);
+
+  if (index === -1) {
+    snapshot.profiles.push(profile);
+  } else {
+    snapshot.profiles[index] = profile;
+  }
+
+  writeSnapshot(snapshot);
+}
+
+export function deleteProfile(id: string): void {
+  const snapshot = readSnapshot();
+  writeSnapshot({
+    schemaVersion: SCHEMA_VERSION,
+    profiles: snapshot.profiles.filter((profile) => profile.id !== id),
+  });
+}
