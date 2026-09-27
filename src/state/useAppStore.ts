@@ -1,43 +1,8 @@
 import { create } from "zustand";
 import type { Dataset, ParsedRecord } from "@/core/dataset/types";
-import { computeExpectedFieldCount } from "@/core/parsing/computeExpectedFieldCount";
-import { detectDelimiter } from "@/core/parsing/detectDelimiter";
 import { parseDataset } from "@/core/parsing/parseDataset";
-import { parseRecord } from "@/core/parsing/parseRecord";
-import { sampleMiddleLines } from "@/core/parsing/sampleMiddleLines";
-import type { DelimiterParsingConfig } from "@/core/parsing/types";
-import { createDefaultDisplayConfig, createProfile } from "@/core/profile/createProfile";
+import { listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
 import type { Profile } from "@/core/profile/types";
-
-/**
- * Phase D placeholder: auto-derives a delimiter Profile straight from the
- * Dataset (auto-detected delimiter, no header/quote/trim toggles). Replaced
- * by the interactive wizard in Phase E, which lets the user confirm/override
- * these choices instead of guessing.
- */
-function autoCreateProfile(rawText: string): Profile {
-  const sample = sampleMiddleLines(rawText, 10);
-  const delimiter = detectDelimiter(sample);
-
-  const draftConfig: DelimiterParsingConfig = {
-    kind: "delimiter",
-    delimiter,
-    hasHeaderRow: false,
-    stripQuotes: false,
-    trimBoundaryPartials: false,
-    expectedFieldCount: 0,
-  };
-
-  const sampleRecords = sample.map((raw, index) => parseRecord({ index, raw }, draftConfig));
-  const expectedFieldCount = computeExpectedFieldCount(sampleRecords);
-  const fieldNames = Array.from({ length: expectedFieldCount }, (_, i) => `Field ${i + 1}`);
-
-  return createProfile({
-    name: "Untitled profile",
-    parsing: { ...draftConfig, expectedFieldCount },
-    display: createDefaultDisplayConfig(fieldNames),
-  });
-}
 
 interface AppState {
   dataset: Dataset | null;
@@ -46,8 +11,15 @@ interface AppState {
   activeProfile: Profile | null;
   /** Session-only; never persisted to the Profile (see Hidden Record in CONTEXT.md). */
   hiddenRecordIndexes: Set<number>;
+  /** Profiles available to pick from, loaded from localStorage. */
+  savedProfiles: Profile[];
 
   loadDataset: (rawText: string) => void;
+  /** Re-parses the current Dataset with this Profile and makes it active. */
+  applyProfile: (profile: Profile) => void;
+  /** Persists the Profile, refreshes the picker list, then applies it. */
+  saveAndApplyProfile: (profile: Profile) => void;
+
   setVisibleFieldKeys: (keys: string[]) => void;
   toggleFieldVisibility: (key: string) => void;
   moveFieldUp: (key: string) => void;
@@ -61,18 +33,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   records: [],
   activeProfile: null,
   hiddenRecordIndexes: new Set(),
+  savedProfiles: [],
 
   loadDataset: (rawText) => {
-    const activeProfile = autoCreateProfile(rawText);
-    const { fieldNames, records } = parseDataset(rawText, activeProfile.parsing);
-
     set({
       dataset: { rawText },
-      activeProfile,
-      fieldNames,
-      records,
+      activeProfile: null,
+      fieldNames: [],
+      records: [],
       hiddenRecordIndexes: new Set(),
+      savedProfiles: listProfiles(),
     });
+  },
+
+  applyProfile: (profile) => {
+    const dataset = get().dataset;
+    if (!dataset) return;
+    const { fieldNames, records } = parseDataset(dataset.rawText, profile.parsing);
+    set({ activeProfile: profile, fieldNames, records, hiddenRecordIndexes: new Set() });
+  },
+
+  saveAndApplyProfile: (profile) => {
+    saveProfile(profile);
+    set({ savedProfiles: listProfiles() });
+    get().applyProfile(profile);
   },
 
   setVisibleFieldKeys: (keys) => {
