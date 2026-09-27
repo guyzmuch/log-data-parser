@@ -5,7 +5,7 @@ import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
-import type { Profile } from "@/core/profile/types";
+import type { Profile, SearchState } from "@/core/profile/types";
 
 interface AppState {
   dataset: Dataset | null;
@@ -25,12 +25,15 @@ interface AppState {
   applyProfile: (profile: Profile) => void;
   /** Persists the Profile, refreshes the picker list, then applies it. */
   saveAndApplyProfile: (profile: Profile) => void;
+  /** Persists the current live display state (visible columns, order, labels, derived fields, search) back onto the active Profile. */
+  saveCurrentView: () => void;
 
   setVisibleFieldKeys: (keys: string[]) => void;
   toggleFieldVisibility: (key: string) => void;
   moveFieldUp: (key: string) => void;
   moveFieldDown: (key: string) => void;
   renameField: (key: string, label: string) => void;
+  setSearchState: (search: SearchState) => void;
 
   /** Adds the default ISO/local-time pair for a Field, if it doesn't already have Derived Fields. No-op otherwise. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
@@ -106,6 +109,14 @@ export const useAppStore = create<AppState>((set, get) => {
       get().applyProfile(profile);
     },
 
+    saveCurrentView: () => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const updatedProfile: Profile = { ...profile, updatedAt: new Date().toISOString() };
+      saveProfile(updatedProfile);
+      set({ activeProfile: updatedProfile, savedProfiles: listProfiles() });
+    },
+
     setVisibleFieldKeys: (keys) => {
       const profile = get().activeProfile;
       if (!profile) return;
@@ -151,6 +162,12 @@ export const useAppStore = create<AppState>((set, get) => {
           display: { ...profile.display, fieldLabels: { ...profile.display.fieldLabels, [key]: label } },
         },
       });
+    },
+
+    setSearchState: (search) => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      set({ activeProfile: { ...profile, display: { ...profile.display, searchState: search } } });
     },
 
     addDefaultDateDerivedFields: (sourceFieldKey) => {

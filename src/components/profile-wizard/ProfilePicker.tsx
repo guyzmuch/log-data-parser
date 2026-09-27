@@ -16,6 +16,9 @@ export function ProfilePicker() {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const applyProfile = useAppStore((s) => s.applyProfile);
   const saveAndApplyProfile = useAppStore((s) => s.saveAndApplyProfile);
+  const saveCurrentView = useAppStore((s) => s.saveCurrentView);
+
+  const [justSaved, setJustSaved] = useState(false);
 
   if (!dataset) return null;
 
@@ -41,6 +44,19 @@ export function ProfilePicker() {
         {activeProfile && (
           <Button variant="outline" size="sm" onClick={() => setWizardTarget(activeProfile)}>
             Edit parsing…
+          </Button>
+        )}
+        {activeProfile && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              saveCurrentView();
+              setJustSaved(true);
+              setTimeout(() => setJustSaved(false), 1500);
+            }}
+          >
+            {justSaved ? "Saved" : "Save view"}
           </Button>
         )}
       </div>

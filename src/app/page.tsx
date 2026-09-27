@@ -2,6 +2,7 @@ import { ColumnControls } from "@/components/data-table/ColumnControls";
 import { DataTable } from "@/components/data-table/DataTable";
 import { DatasetInput } from "@/components/dataset-input/DatasetInput";
 import { ProfilePicker } from "@/components/profile-wizard/ProfilePicker";
+import { SearchBar } from "@/components/search-bar/SearchBar";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
       <DatasetInput />
       <ProfilePicker />
       <ColumnControls />
+      <SearchBar />
       <DataTable />
     </main>
   );
