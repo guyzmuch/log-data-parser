@@ -1,0 +1,4 @@
+id,name,role,active
+1,"alice","engineer",true
+2,"bob","manager",false
+3,"carol","designer",true

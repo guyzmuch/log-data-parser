@@ -33,6 +33,15 @@ describe("parseDataset", () => {
     expect(result.fieldNames).toEqual(["Field 1", "Field 2", "Field 3"]);
   });
 
+  it("reports the full per-record field-name list even when config.fieldNames only names a prefix", () => {
+    // Regression: the aggregate fieldNames used to come from config.fieldNames
+    // directly, silently truncating to its length whenever it was shorter
+    // than the actual split — even though each Record's own Fields were
+    // already correctly named/generic-fallback past that point.
+    const result = parseDataset("a,b,c,d,e", baseConfig({ fieldNames: ["first", "second"] }));
+    expect(result.fieldNames).toEqual(["first", "second", "Field 3", "Field 4", "Field 5"]);
+  });
+
   it("reports [] fieldNames when boundary trim drops every record", () => {
     // Two records, both short of expectedFieldCount -> both are boundary records -> both dropped.
     const result = parseDataset("a\nb", baseConfig({ trimBoundaryPartials: true, expectedFieldCount: 3 }));

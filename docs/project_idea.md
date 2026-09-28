@@ -18,7 +18,7 @@ Should remove the quote around data if any.
 Posibility to add comment on each data line
 You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
 We should have an interactive parsing configuration, like when libreoffice parse a csv
-On peut troer me tableau en colonne
+we can sort the table by column (asc/desc)
 
 
 ## Techno :
@@ -32,8 +32,6 @@ Have the posibility to upload multipe data, and join then via column or by data 
 That could be cool if we could connect it to a live logs, like connect it to a terminal output. Maybe thos could be done via a command line, where we forward the output of a terminal via stream into the interface
 v1's delimiter split is a plain string split, not quote-aware (a delimiter inside a quoted CSV value, e.g. `a,"b,c",d`, splits wrong). Could swap in a real CSV parser package specifically for uploaded `.csv` files later, while keeping the simple splitter for pasted/raw log text.
 
-since we detect cell, maybe notify column that only have empty data
-
 
 ## improvement seen while working
 make the interface largeur
@@ -45,4 +43,8 @@ column should displayed for the top one to the bottom, and we should order the c
 Posibility to save multiple view for one profile
 once the data is parsed, we should remove the insertion fields (or maybe hide it in a tab or something)
 like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
+be able to duplicate a profile (so we start from a base)
+be able to sort the profile
 option to trim all the cell (but not by default, because it might be usefull)
+since we detect cell, maybe notify column that only have empty data
+be able to sort data by column (asc, desc)

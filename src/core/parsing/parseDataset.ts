@@ -34,11 +34,16 @@ export function parseDataset(rawText: string, config: ParsingConfig): ParsedData
     records = applyBoundaryTrim(records, config.expectedFieldCount);
   }
 
-  // Fall back to whatever Field keys parseRecord actually used (e.g. its
-  // generic "Field N" names) when there's no header row and no explicit
-  // fieldNames — otherwise this would report [] even though every Record
-  // has properly-keyed Fields.
-  const resolvedFieldNames = fieldNames ?? records[0]?.fields.map((field) => field.key) ?? [];
+  // Always prefer the keys a parsed Record actually ended up with over the
+  // raw config.fieldNames: parseRecord already applies the correct
+  // per-field fallback (config.fieldNames?.[i] ?? "Field N"), so this is
+  // right whether fieldNames is absent, full, or only a partial prefix (a
+  // built-in Profile may only name the fields that reliably stay aligned —
+  // see builtInProfiles.ts). Using config.fieldNames directly here would
+  // silently truncate the list to its own length whenever it's shorter than
+  // the actual Record. Only fall back to it when there's no Record to ask
+  // (e.g. an empty Dataset, or boundary trim dropped every Record).
+  const resolvedFieldNames = records[0]?.fields.map((field) => field.key) ?? fieldNames ?? [];
 
   return { fieldNames: resolvedFieldNames, records };
 }

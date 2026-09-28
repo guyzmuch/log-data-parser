@@ -1,4 +1,4 @@
-export type Delimiter = "," | "\t" | "|" | ";";
+export type Delimiter = "," | "\t" | "|" | ";" | " ";
 
 /**
  * How to split a Record into Fields. A discriminated union so future kinds

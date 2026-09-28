@@ -4,6 +4,7 @@ import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
+import { listHiddenProfileIds, setHiddenProfileIds } from "@/core/persistence/hiddenProfiles";
 import { listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
 import type { Profile, SearchState } from "@/core/profile/types";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
@@ -24,6 +25,8 @@ interface AppState {
   selectionAnchorIndex: number | null;
   /** Profiles available to pick from, loaded from localStorage. */
   savedProfiles: Profile[];
+  /** Ids of Profiles (built-in or user) hidden from the picker's normal view — see Hidden Profile in CONTEXT.md. */
+  hiddenProfileIds: Set<string>;
 
   loadDataset: (rawText: string) => void;
   /** Re-parses the current Dataset with this Profile and makes it active. */
@@ -32,6 +35,10 @@ interface AppState {
   saveAndApplyProfile: (profile: Profile) => void;
   /** Persists the current live display state (visible columns, order, labels, derived fields, search) back onto the active Profile. */
   saveCurrentView: () => void;
+  /** Hides a Profile (built-in or user) from the picker's normal view. Persists across reloads. */
+  hideProfile: (id: string) => void;
+  /** Reverses hideProfile. */
+  unhideProfile: (id: string) => void;
 
   setVisibleFieldKeys: (keys: string[]) => void;
   toggleFieldVisibility: (key: string) => void;
@@ -98,6 +105,7 @@ export const useAppStore = create<AppState>((set, get) => {
     selectedRecordIndexes: new Set(),
     selectionAnchorIndex: null,
     savedProfiles: [],
+    hiddenProfileIds: new Set(),
 
     loadDataset: (rawText) => {
       set({
@@ -110,6 +118,7 @@ export const useAppStore = create<AppState>((set, get) => {
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
         savedProfiles: listProfiles(),
+        hiddenProfileIds: new Set(listHiddenProfileIds()),
       });
     },
 
@@ -119,8 +128,18 @@ export const useAppStore = create<AppState>((set, get) => {
       const { fieldNames: baseFieldNames, records: baseRecords } = parseDataset(dataset.rawText, profile.parsing);
       const records = applyDerivedFields(baseRecords, profile.display.derivedFieldSelections);
       const derivedKeys = profile.display.derivedFieldSelections.map(derivedFieldKey);
+
+      // A Profile with no Visible Fields set yet (e.g. a built-in template
+      // that's never seen this Dataset's actual Field names before) defaults
+      // to everything visible, same as a freshly-created Profile.
+      const visibleFieldKeys =
+        profile.display.visibleFieldKeys.length > 0
+          ? profile.display.visibleFieldKeys
+          : [...baseFieldNames, ...derivedKeys];
+      const appliedProfile: Profile = { ...profile, display: { ...profile.display, visibleFieldKeys } };
+
       set({
-        activeProfile: profile,
+        activeProfile: appliedProfile,
         baseFieldNames,
         fieldNames: [...baseFieldNames, ...derivedKeys],
         records,
@@ -142,6 +161,20 @@ export const useAppStore = create<AppState>((set, get) => {
       const updatedProfile: Profile = { ...profile, updatedAt: new Date().toISOString() };
       saveProfile(updatedProfile);
       set({ activeProfile: updatedProfile, savedProfiles: listProfiles() });
+    },
+
+    hideProfile: (id) => {
+      const next = new Set(get().hiddenProfileIds);
+      next.add(id);
+      setHiddenProfileIds([...next]);
+      set({ hiddenProfileIds: next });
+    },
+
+    unhideProfile: (id) => {
+      const next = new Set(get().hiddenProfileIds);
+      next.delete(id);
+      setHiddenProfileIds([...next]);
+      set({ hiddenProfileIds: next });
     },
 
     setVisibleFieldKeys: (keys) => {

@@ -1,6 +1,6 @@
 import type { Delimiter } from "@/core/parsing/types";
 
-export const DELIMITER_CANDIDATES: Delimiter[] = [",", "\t", "|", ";"];
+export const DELIMITER_CANDIDATES: Delimiter[] = [",", "\t", "|", ";", " "];
 
 /**
  * Simple split on the delimiter — not RFC4180 quote-aware (a delimiter

@@ -19,6 +19,7 @@ import { buildWizardSample } from "@/core/parsing/buildWizardSample";
 import { detectDelimiter } from "@/core/parsing/detectDelimiter";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import type { Delimiter } from "@/core/parsing/types";
+import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
 import { createDefaultDisplayConfig, createProfile } from "@/core/profile/createProfile";
 import type { Profile } from "@/core/profile/types";
 
@@ -27,6 +28,7 @@ const DELIMITER_LABELS: Record<Delimiter, string> = {
   "\t": "Tab",
   "|": "Pipe ( | )",
   ";": "Semicolon ( ; )",
+  " ": "Space",
 };
 
 const PREVIEW_SAMPLE_SIZE = 8;
@@ -47,7 +49,14 @@ export function ProfileWizard({ open, onOpenChange, datasetRawText, initialProfi
   const sample = useMemo(() => buildWizardSample(datasetRawText, PREVIEW_SAMPLE_SIZE), [datasetRawText]);
   const sampleRawText = useMemo(() => sample.join("\n"), [sample]);
 
-  const [name, setName] = useState(initialProfile?.name ?? "Untitled profile");
+  // Editing a built-in Profile always forks into a new one on save (it has
+  // no localStorage slot of its own to overwrite) — name the fork clearly
+  // rather than silently reusing the built-in's exact display name.
+  const editingBuiltIn = initialProfile !== undefined && isBuiltInProfile(initialProfile);
+
+  const [name, setName] = useState(
+    editingBuiltIn ? `${initialProfile!.name} (copy)` : (initialProfile?.name ?? "Untitled profile"),
+  );
   const [delimiter, setDelimiter] = useState<Delimiter>(
     initialProfile?.parsing.delimiter ?? detectDelimiter(sample),
   );
@@ -72,9 +81,10 @@ export function ProfileWizard({ open, onOpenChange, datasetRawText, initialProfi
     // is regenerated fresh rather than trying to remap stale visible/hidden
     // keys onto a potentially different field set.
     const display = createDefaultDisplayConfig(realFieldNames);
-    const profile: Profile = initialProfile
-      ? { ...initialProfile, name, parsing: preview.config, display, updatedAt: new Date().toISOString() }
-      : createProfile({ name, parsing: preview.config, display });
+    const profile: Profile =
+      initialProfile && !editingBuiltIn
+        ? { ...initialProfile, name, parsing: preview.config, display, updatedAt: new Date().toISOString() }
+        : createProfile({ name, parsing: preview.config, display });
 
     onSave(profile);
     onOpenChange(false);
@@ -84,7 +94,7 @@ export function ProfileWizard({ open, onOpenChange, datasetRawText, initialProfi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{initialProfile ? "Edit profile" : "New profile"}</DialogTitle>
+          <DialogTitle>{editingBuiltIn ? "Duplicate built-in profile" : initialProfile ? "Edit profile" : "New profile"}</DialogTitle>
           <DialogDescription>
             Configure how this data is split into columns. The preview below uses a sample from the middle of
             your data.

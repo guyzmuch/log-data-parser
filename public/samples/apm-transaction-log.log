@@ -1,0 +1,5 @@
+timestamp|service|transaction_id|trace_id|duration_ms|status|message
+2026-01-15T12:30:00.000Z|checkout-service|txn-88231|trace-4471a|142|success|Payment captured
+2026-01-15T12:30:01.500Z|checkout-service|txn-88232|trace-4471b|89|success|Payment captured
+2026-01-15T12:30:03.220Z|inventory-service|txn-88233|trace-4471c|2350|error|Timeout calling warehouse API
+2026-01-15T12:30:04.010Z|checkout-service|txn-88234|trace-4471d|56|success|Payment captured
