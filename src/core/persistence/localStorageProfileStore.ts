@@ -63,6 +63,22 @@ export function saveProfile(profile: Profile): void {
   writeSnapshot(snapshot);
 }
 
+/** Upserts each given Profile by id, in one write. */
+export function saveProfiles(profiles: Profile[]): void {
+  const snapshot = readSnapshot();
+
+  for (const profile of profiles) {
+    const index = snapshot.profiles.findIndex((p) => p.id === profile.id);
+    if (index === -1) {
+      snapshot.profiles.push(profile);
+    } else {
+      snapshot.profiles[index] = profile;
+    }
+  }
+
+  writeSnapshot(snapshot);
+}
+
 export function deleteProfile(id: string): void {
   const snapshot = readSnapshot();
   writeSnapshot({

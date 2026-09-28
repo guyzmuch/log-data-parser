@@ -5,18 +5,18 @@ const PROFILE_FILE_SCHEMA_VERSION = 1;
 
 interface ProfileFilePayload {
   schemaVersion: number;
-  profile: Profile;
+  profiles: Profile[];
 }
 
 export class ProfileImportError extends Error {}
 
-export function exportProfileToJSON(profile: Profile): Blob {
-  const payload: ProfileFilePayload = { schemaVersion: PROFILE_FILE_SCHEMA_VERSION, profile };
+export function exportProfilesToJSON(profiles: Profile[]): Blob {
+  const payload: ProfileFilePayload = { schemaVersion: PROFILE_FILE_SCHEMA_VERSION, profiles };
   return new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
 }
 
 /** Accepts a Blob so both a browser File (upload input) and our own exported Blob round-trip through the same path. */
-export async function importProfileFromJSON(file: Blob): Promise<Profile> {
+export async function importProfilesFromJSON(file: Blob): Promise<Profile[]> {
   const text = await file.text();
 
   let parsed: unknown;
@@ -27,10 +27,10 @@ export async function importProfileFromJSON(file: Blob): Promise<Profile> {
   }
 
   if (typeof parsed !== "object" || parsed === null) {
-    throw new ProfileImportError("File does not contain a Profile.");
+    throw new ProfileImportError("File does not contain any Profiles.");
   }
 
-  const { schemaVersion, profile } = parsed as Partial<ProfileFilePayload>;
+  const { schemaVersion, profiles } = parsed as Partial<ProfileFilePayload>;
 
   if (typeof schemaVersion !== "number") {
     throw new ProfileImportError("File is missing a schema version.");
@@ -38,9 +38,9 @@ export async function importProfileFromJSON(file: Blob): Promise<Profile> {
   if (schemaVersion !== PROFILE_FILE_SCHEMA_VERSION) {
     throw new ProfileImportError(`Unsupported Profile file version: ${schemaVersion}.`);
   }
-  if (!isProfile(profile)) {
-    throw new ProfileImportError("File does not contain a valid Profile.");
+  if (!Array.isArray(profiles) || profiles.length === 0 || !profiles.every(isProfile)) {
+    throw new ProfileImportError("File does not contain valid Profiles.");
   }
 
-  return profile;
+  return profiles;
 }

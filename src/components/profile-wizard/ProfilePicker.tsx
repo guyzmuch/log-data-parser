@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProfileWizard } from "@/components/profile-wizard/ProfileWizard";
-import { BUILT_IN_PROFILES } from "@/core/profile/builtInProfiles";
+import { BUILT_IN_PROFILES, isBuiltInProfile } from "@/core/profile/builtInProfiles";
+import { createProfile } from "@/core/profile/createProfile";
 import type { Profile } from "@/core/profile/types";
+import { exportProfilesToJSON, importProfilesFromJSON, ProfileImportError } from "@/core/persistence/profileFile";
+import { downloadBlob } from "@/lib/downloadBlob";
 import { useAppStore } from "@/state/useAppStore";
 
 /** "new" opens the wizard in create mode; a Profile opens it in edit mode; null keeps it closed. */
@@ -40,6 +43,8 @@ export function ProfilePicker() {
   const [wizardTarget, setWizardTarget] = useState<WizardTarget>(null);
   const [showHidden, setShowHidden] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const dataset = useAppStore((s) => s.dataset);
   const savedProfiles = useAppStore((s) => s.savedProfiles);
@@ -47,6 +52,7 @@ export function ProfilePicker() {
   const hiddenProfileIds = useAppStore((s) => s.hiddenProfileIds);
   const applyProfile = useAppStore((s) => s.applyProfile);
   const saveAndApplyProfile = useAppStore((s) => s.saveAndApplyProfile);
+  const importSavedProfiles = useAppStore((s) => s.importSavedProfiles);
   const saveCurrentView = useAppStore((s) => s.saveCurrentView);
   const hideProfile = useAppStore((s) => s.hideProfile);
   const unhideProfile = useAppStore((s) => s.unhideProfile);
@@ -61,6 +67,33 @@ export function ProfilePicker() {
   function handleToggleHidden(id: string) {
     if (hiddenProfileIds.has(id)) unhideProfile(id);
     else hideProfile(id);
+  }
+
+  function handleExportAll() {
+    downloadBlob(exportProfilesToJSON(savedProfiles), "log-data-parser-profiles.json");
+  }
+
+  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const imported = await importProfilesFromJSON(file);
+      setImportError(null);
+      // An imported Profile that happens to carry a built-in id (e.g.
+      // re-importing a previously-exported built-in) has no localStorage
+      // slot to overwrite — fork it into a genuine new Profile, same as
+      // editing a built-in via the wizard does.
+      const toSave = imported.map((profile) =>
+        isBuiltInProfile(profile)
+          ? createProfile({ name: `${profile.name} (imported)`, parsing: profile.parsing, display: profile.display })
+          : profile,
+      );
+      importSavedProfiles(toSave);
+    } catch (error) {
+      setImportError(error instanceof ProfileImportError ? error.message : "Could not import this file.");
+    }
   }
 
   return (
@@ -100,12 +133,21 @@ export function ProfilePicker() {
             {justSaved ? "Saved" : "Save view"}
           </Button>
         )}
+        <Button variant="outline" size="sm" onClick={handleExportAll} disabled={savedProfiles.length === 0}>
+          Export all
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()}>
+          Import profiles…
+        </Button>
+        <input ref={importInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
         {hiddenProfiles.length > 0 && (
           <Button variant="ghost" size="sm" onClick={() => setShowHidden((prev) => !prev)}>
             {showHidden ? "Hide hidden profiles" : `Show hidden (${hiddenProfiles.length})`}
           </Button>
         )}
       </div>
+
+      {importError && <p className="text-xs text-destructive">{importError}</p>}
 
       {showHidden && hiddenProfiles.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-input pt-2">

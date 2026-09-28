@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { buildExportRows } from "@/core/export/buildExportRows";
 import { toCSVBlob } from "@/core/export/toCSVBlob";
 import type { ExportScope } from "@/core/export/types";
+import { downloadBlob } from "@/lib/downloadBlob";
 import { useAppStore } from "@/state/useAppStore";
 
 const SCOPE_LABELS: Record<ExportScope, string> = {
@@ -13,17 +14,6 @@ const SCOPE_LABELS: Record<ExportScope, string> = {
   "excluding-hidden": "Excluding hidden",
   "matching-filter": "Matching filter",
 };
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
 
 export function ExportMenu() {
   const [scope, setScope] = useState<ExportScope>("all");

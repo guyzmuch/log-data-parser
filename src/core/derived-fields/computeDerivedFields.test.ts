@@ -63,4 +63,47 @@ describe("computeDerivedFields", () => {
     expect(results.map((f) => f.key)).toEqual(["created (ISO)", "created (local time)"]);
     expect(results.every((f) => f.parseError === undefined)).toBe(true);
   });
+
+  describe("trim", () => {
+    it("trims leading/trailing whitespace", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "trim", sourceFieldKey: "created" }];
+      const [result] = computeDerivedFields(field("  padded value  "), specs);
+      expect(result).toEqual({ key: "created (trimmed)", value: "padded value", sourceFieldKey: "created" });
+    });
+
+    it("never produces a Parse Error — trimming can't fail", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "trim", sourceFieldKey: "created" }];
+      const [result] = computeDerivedFields(field(""), specs);
+      expect(result.parseError).toBeUndefined();
+    });
+  });
+
+  describe("unescape", () => {
+    it("un-escapes common backslash sequences", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "unescape", sourceFieldKey: "created" }];
+      const [result] = computeDerivedFields(field('He said \\"hi\\"'), specs);
+      expect(result).toEqual({ key: "created (unescaped)", value: 'He said "hi"', sourceFieldKey: "created" });
+    });
+  });
+
+  describe("json-key", () => {
+    it("extracts a top-level key from a JSON object value", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "json-key", sourceFieldKey: "created", jsonKey: "userId" }];
+      const [result] = computeDerivedFields(field('{"userId":"u-123","name":"alice"}'), specs);
+      expect(result).toEqual({ key: "created.userId", value: "u-123", sourceFieldKey: "created" });
+    });
+
+    it("marks non-JSON input as a Parse Error", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "json-key", sourceFieldKey: "created", jsonKey: "userId" }];
+      const [result] = computeDerivedFields(field("not json"), specs);
+      expect(result).toEqual({ key: "created.userId", value: "", sourceFieldKey: "created", parseError: true });
+    });
+
+    it("returns an empty (not error) value when the key is simply absent on this record", () => {
+      const specs: DerivedFieldSpec[] = [{ kind: "json-key", sourceFieldKey: "created", jsonKey: "missingKey" }];
+      const [result] = computeDerivedFields(field('{"userId":"u-123"}'), specs);
+      expect(result).toEqual({ key: "created.missingKey", value: "", sourceFieldKey: "created" });
+      expect(result.parseError).toBeUndefined();
+    });
+  });
 });

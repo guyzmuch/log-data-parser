@@ -1,8 +1,9 @@
 export type IanaTimeZone = string;
 
 /**
- * Discriminated union so future kinds (base64 decode, JSON explode, ...)
- * can be added without restructuring DisplayConfig. Only "date" exists in v1.
+ * Discriminated union so new kinds can be added without restructuring
+ * DisplayConfig. `kind` distinguishes them; each Derived Field type from
+ * `computeDerivedFields` for what a spec of that kind actually computes.
  */
 export interface DateDerivedFieldSpec {
   kind: "date";
@@ -15,4 +16,32 @@ export interface DateDerivedFieldSpec {
   timezone?: IanaTimeZone;
 }
 
-export type DerivedFieldSpec = DateDerivedFieldSpec;
+/** Trims leading/trailing whitespace from the source Field's value. */
+export interface TrimDerivedFieldSpec {
+  kind: "trim";
+  sourceFieldKey: string;
+}
+
+/** Un-escapes common backslash sequences (\", \\, \n, \t, \r) from a stringified value. */
+export interface UnescapeDerivedFieldSpec {
+  kind: "unescape";
+  sourceFieldKey: string;
+}
+
+/**
+ * Extracts one top-level key from a source Field's value, parsed as a JSON
+ * object. One spec per discovered key — see discoverJsonKeys.ts. Nested
+ * objects/arrays are not recursively exploded further (v1 keeps this to one
+ * level), just stringified back for display.
+ */
+export interface JsonKeyDerivedFieldSpec {
+  kind: "json-key";
+  sourceFieldKey: string;
+  jsonKey: string;
+}
+
+export type DerivedFieldSpec =
+  | DateDerivedFieldSpec
+  | TrimDerivedFieldSpec
+  | UnescapeDerivedFieldSpec
+  | JsonKeyDerivedFieldSpec;

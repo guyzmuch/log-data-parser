@@ -48,3 +48,5 @@ be able to sort the profile
 option to trim all the cell (but not by default, because it might be usefull)
 since we detect cell, maybe notify column that only have empty data
 be able to sort data by column (asc, desc)
+user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color). 
+maybe make the parsing of field via regex

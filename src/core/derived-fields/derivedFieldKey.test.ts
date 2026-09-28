@@ -24,4 +24,18 @@ describe("derivedFieldKey", () => {
       "created (local time)",
     );
   });
+
+  it("names a trim derived field", () => {
+    expect(derivedFieldKey({ kind: "trim", sourceFieldKey: "message" })).toBe("message (trimmed)");
+  });
+
+  it("names an unescape derived field", () => {
+    expect(derivedFieldKey({ kind: "unescape", sourceFieldKey: "message" })).toBe("message (unescaped)");
+  });
+
+  it("names a json-key derived field after its source and key", () => {
+    expect(derivedFieldKey({ kind: "json-key", sourceFieldKey: "payload", jsonKey: "userId" })).toBe(
+      "payload.userId",
+    );
+  });
 });

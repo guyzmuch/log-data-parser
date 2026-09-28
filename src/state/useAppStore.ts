@@ -2,10 +2,11 @@ import { create } from "zustand";
 import type { Dataset, ParsedRecord } from "@/core/dataset/types";
 import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { discoverJsonKeys } from "@/core/derived-fields/discoverJsonKeys";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { listHiddenProfileIds, setHiddenProfileIds } from "@/core/persistence/hiddenProfiles";
-import { listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
+import { listProfiles, saveProfile, saveProfiles } from "@/core/persistence/localStorageProfileStore";
 import type { Profile, SearchState } from "@/core/profile/types";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
 
@@ -33,6 +34,8 @@ interface AppState {
   applyProfile: (profile: Profile) => void;
   /** Persists the Profile, refreshes the picker list, then applies it. */
   saveAndApplyProfile: (profile: Profile) => void;
+  /** Upserts every given Profile by id in one go and refreshes the picker list. Doesn't apply any of them. */
+  importSavedProfiles: (profiles: Profile[]) => void;
   /** Persists the current live display state (visible columns, order, labels, derived fields, search) back onto the active Profile. */
   saveCurrentView: () => void;
   /** Hides a Profile (built-in or user) from the picker's normal view. Persists across reloads. */
@@ -63,10 +66,16 @@ interface AppState {
   /** Clears hiddenRecordIndexes, making every Record visible again. */
   unhideAllRecords: () => void;
 
-  /** Adds the default ISO/local-time pair for a Field, if it doesn't already have Derived Fields. No-op otherwise. */
+  /** Adds the default ISO/local-time pair for a Field, if it doesn't already have a date Derived Field. No-op otherwise. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
   /** Adds one more timezone-specific Derived Field for a Field — additive, never replaces existing ones. */
   addTimezoneDerivedField: (sourceFieldKey: string, timezone: string) => void;
+  /** Adds a trimmed Derived Field for a Field, if it doesn't already have one. */
+  addTrimDerivedField: (sourceFieldKey: string) => void;
+  /** Adds an unescaped Derived Field for a Field, if it doesn't already have one. */
+  addUnescapeDerivedField: (sourceFieldKey: string) => void;
+  /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if it already has any, or if nothing in the sample parses as a JSON object. */
+  addJsonKeyDerivedFields: (sourceFieldKey: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => {
@@ -153,6 +162,11 @@ export const useAppStore = create<AppState>((set, get) => {
       saveProfile(profile);
       set({ savedProfiles: listProfiles() });
       get().applyProfile(profile);
+    },
+
+    importSavedProfiles: (profiles) => {
+      saveProfiles(profiles);
+      set({ savedProfiles: listProfiles() });
     },
 
     saveCurrentView: () => {
@@ -268,7 +282,10 @@ export const useAppStore = create<AppState>((set, get) => {
     addDefaultDateDerivedFields: (sourceFieldKey) => {
       const profile = get().activeProfile;
       if (!profile) return;
-      if (profile.display.derivedFieldSelections.some((spec) => spec.sourceFieldKey === sourceFieldKey)) return;
+      const alreadyHasDate = profile.display.derivedFieldSelections.some(
+        (spec) => spec.kind === "date" && spec.sourceFieldKey === sourceFieldKey,
+      );
+      if (alreadyHasDate) return;
 
       const newSpecs: DerivedFieldSpec[] = [
         { kind: "date", sourceFieldKey, representation: "iso" },
@@ -277,11 +294,60 @@ export const useAppStore = create<AppState>((set, get) => {
       commitDerivedFieldSelections([...profile.display.derivedFieldSelections, ...newSpecs]);
     },
 
+    addTrimDerivedField: (sourceFieldKey) => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const alreadyExists = profile.display.derivedFieldSelections.some(
+        (spec) => spec.kind === "trim" && spec.sourceFieldKey === sourceFieldKey,
+      );
+      if (alreadyExists) return;
+
+      const newSpec: DerivedFieldSpec = { kind: "trim", sourceFieldKey };
+      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, newSpec]);
+    },
+
+    addUnescapeDerivedField: (sourceFieldKey) => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const alreadyExists = profile.display.derivedFieldSelections.some(
+        (spec) => spec.kind === "unescape" && spec.sourceFieldKey === sourceFieldKey,
+      );
+      if (alreadyExists) return;
+
+      const newSpec: DerivedFieldSpec = { kind: "unescape", sourceFieldKey };
+      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, newSpec]);
+    },
+
+    addJsonKeyDerivedFields: (sourceFieldKey) => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const alreadyHasJson = profile.display.derivedFieldSelections.some(
+        (spec) => spec.kind === "json-key" && spec.sourceFieldKey === sourceFieldKey,
+      );
+      if (alreadyHasJson) return;
+
+      // Discover keys from this Field's actual values across the current
+      // Dataset (not the wizard's tiny sample — the real, already-parsed
+      // Records) so the offered sub-columns match real data.
+      const sampleValues = get()
+        .records.slice(0, 50)
+        .flatMap((record) => record.fields.filter((f) => f.key === sourceFieldKey).map((f) => f.value));
+      const keys = discoverJsonKeys(sampleValues);
+      if (keys.length === 0) return;
+
+      const newSpecs: DerivedFieldSpec[] = keys.map((jsonKey) => ({ kind: "json-key", sourceFieldKey, jsonKey }));
+      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, ...newSpecs]);
+    },
+
     addTimezoneDerivedField: (sourceFieldKey, timezone) => {
       const profile = get().activeProfile;
       if (!profile) return;
       const alreadyExists = profile.display.derivedFieldSelections.some(
-        (spec) => spec.sourceFieldKey === sourceFieldKey && spec.representation === "timezone" && spec.timezone === timezone,
+        (spec) =>
+          spec.kind === "date" &&
+          spec.sourceFieldKey === sourceFieldKey &&
+          spec.representation === "timezone" &&
+          spec.timezone === timezone,
       );
       if (alreadyExists) return;
 
