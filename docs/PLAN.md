@@ -78,7 +78,7 @@ Greenfield Next.js static-export app. No existing code — this defines the init
   4. Name + save → writes a new `Profile`.
 - Same component for "create new" and "edit existing Profile's parsing config."
 - Dataset-load flow: pick an existing Profile from storage, or launch the wizard to create one.
-- **Verify:** Manual check against a few sample blobs (CSV, TSV, pipe-delimited); Playwright covers the golden path in Phase J.
+- **Verify:** Manual check against a few sample blobs (CSV, TSV, pipe-delimited); Playwright covers the golden path in Phase N.
 
 ### Phase F — Derived Fields (date parsing) + Parse Error state
 `src/core/derived-fields/`:
@@ -109,19 +109,43 @@ Mostly `src/state/` + `DataTable` interaction layer:
 - `ExportMenu`: 3-way select + "Export CSV" button, Blob download via an anchor `download` attribute — pure client-side.
 - **Verify:** Unit tests for `buildExportRows` per scope and for CSV escaping edge cases. Manual/Playwright check of the actual download.
 
-### Phase J — Playwright e2e (golden path)
+### Phase J — Built-in sample Profiles + sample data — done
+Decisions made:
+- Built-in Profiles are bundled as plain TS constants (`src/core/profile/builtInProfiles.ts`), not seeded into localStorage — avoids duplicate-on-load/versioning issues. Ids are prefixed `builtin:` (`isBuiltInProfile()` checks this).
+- They're **fixed presets, always offered additively** alongside the user's own in the picker (never disappear once the user has their own) — see Built-in Profile in CONTEXT.md.
+- A built-in's `display.visibleFieldKeys` starts empty (it isn't tied to any specific Dataset's Field names ahead of time); `applyProfile` in `useAppStore.ts` now falls back to "everything visible" whenever a Profile's `visibleFieldKeys` is empty at apply time — a general fix, not built-in-specific.
+- Editing a built-in via the wizard **forks into a new user Profile** rather than overwriting the built-in's id (which has no localStorage slot to write to) — `ProfileWizard.tsx` checks `isBuiltInProfile(initialProfile)` and always creates fresh in that case, pre-filling the name as `"<built-in name> (copy)"`.
+- Added, on top of the original scope: any Profile (built-in or user) can be **hidden from the picker**, with a "Show hidden (N)" toggle to reveal and unhide them again. Persists across reloads via a separate localStorage key (`src/core/persistence/hiddenProfiles.ts`) — deliberately not part of any single Profile, since it needs to apply across all of them. See Hidden Profile in CONTEXT.md (distinct from Hidden Record).
+- Regression test (`builtInProfiles.test.ts`) asserts the built-in CSV profile parses a realistic quoted/headered sample correctly.
+
+Still open, deliberately deferred: only **one** built-in exists so far ("CSV with header"). Logstash/JSON-line and AWS log-format candidates (which AWS format specifically — CloudTrail vs. ALB access logs, etc.) are still unscoped; add them the same way when there's a concrete format to target, rather than guessing at one now.
+
+### Phase K — Code review
+A structured pass over everything built in A–I (and J once it lands) before any UI rework starts, so the rework builds on a known-clean base rather than compounding on top of anything sloppy. Not designed yet — likely `/code-review` or `/simplify` against the whole diff since project start, covering: consistency of the store-mutation patterns in `useAppStore.ts`, any dead code or leftover duplication (e.g. the `derivedFieldKey` re-derivation risk noted in `ColumnControls.tsx`), test coverage gaps, and whether the "nothing fancy" simplifications taken along the way still hold up under real usage feedback gathered so far.
+
+### Phase L — Improvement list
+Turn the running "improvement seen while working" list in `docs/project_idea.md` into a scoped, ordered set of concrete changes — the planning pass that Phase M then executes. Not designed yet; known candidates already on that list as of this writing:
+- Widen the interface layout.
+- Better UI for column selection generally.
+- Shift-click to unselect a range of *columns* in the Columns panel (distinct from the existing row shift-click).
+- "Hide all" / "show all" columns buttons.
+- Search/filter columns by name to toggle them, Kibana-style.
+- Column order top-to-bottom display + drag-and-drop reordering (replacing the current up/down-button reorder).
+- Support multiple saved views per Profile (a bigger data-model change — Profile currently has exactly one display config; this needs its own design pass on what a "view" is relative to a Profile).
+- Collapse/hide the dataset-input area once data is parsed (tab it away or similar), instead of always showing the paste/upload box.
+- Kibana-style filter in/out by a cell's exact content (click a cell value to add it as a filter).
+- An opt-in (not default) "trim all cells" option.
+- **Verify:** TBD — this phase's own output is the scoped plan for Phase M, not code.
+
+### Phase M — UI rework
+Implements whatever Phase L scoped. Not designed yet, since it depends entirely on L's output.
+
+### Phase N — Playwright e2e (golden path)
 `e2e/`:
 - `golden-path.spec.ts`: paste a small multi-line sample → wizard (delimiter auto-detect, confirm toggles) → save Profile → table renders expected columns/rows → hide a Field → re-show it (assert underlying data unaffected) → force a column as date → verify Derived Field columns appear and a bad value shows Parse Error → search + toggle Highlight/Filter → multi-select rows and hide → export CSV with each of the 3 scopes and assert downloaded content.
 - `profile-persistence.spec.ts`: save Profile, reload, confirm it's listed; export to JSON, clear localStorage, import back, confirm identical behavior.
 - **Verify:** these specs run against the static-exported `out/` served locally — matching actual Apache deployment, not `next dev`.
-
-### Phase K — Built-in sample Profiles + sample data
-Not designed yet — what goes into each Profile, and what the sample files look like, is a decision for when we're actually at this phase (needs its own scoping pass, likely revisiting real-world format examples for each target). Placeholder scope:
-- A small set of ready-made Profiles ("pre-profile for common parsing" from `docs/project_idea.md`) shipped with the app for common log/data shapes — candidates: plain CSV, Logstash/JSON-line logs, AWS (e.g. CloudTrail or ALB access logs — which AWS format(s) TBD).
-- A matching sample data file per built-in Profile, small enough to commit to the repo, realistic enough to exercise that Profile's parsing config (delimiter/header/quote/trim/derived-timestamp settings).
-- Tests (Vitest) asserting each built-in Profile actually parses its paired sample file into the expected Fields/Record count — regression coverage so a Profile default can't silently drift from the sample it's supposed to handle.
-- Needs a decision on where built-in Profiles live/load from (bundled JSON in the repo vs. seeded into localStorage on first run) and whether they're user-editable copies or fixed presets — revisit `src/core/profile/` structure then.
-- **Verify:** TBD alongside the design pass — likely Vitest for the parse-matches-sample assertions, plus a manual/Playwright check that built-in Profiles show up and are selectable in the Profile-picker UI from Phase E.
+- Deliberately sequenced after K/L/M: writing this against UI that's about to be reworked (drag-and-drop reordering, column search/filter, tabbed input area, etc.) would mean re-doing most of its selectors and flows once that rework lands — better to encode the golden path once the interface shape is actually settled.
 
 ## 2. Sequencing notes
 
@@ -130,8 +154,10 @@ Not designed yet — what goes into each Profile, and what the sample files look
 - Phase F depends only on B/C's types, not on E.
 - G and H are independent of each other; both depend on D.
 - I depends on G and H's state plus D's display config.
-- J should be written incrementally alongside D–I, with the full golden-path spec assembled once I lands as a regression net.
-- K depends on B (parsing engine, to validate samples parse correctly) and E (Profile picker UI, to surface built-ins) — do it last; it's additive polish, not a blocker for the rest of v1.
+- J depends on B (parsing engine, to validate samples parse correctly) and E (Profile picker UI, to surface built-ins) — additive polish, not a blocker for the rest of v1, but scheduled next since it's cheap and doesn't touch anything K/L/M will rework.
+- K (code review) should happen before L/M so the rework starts from a clean, reviewed base.
+- L (improvement list) must land before M (UI rework) — M has no scope of its own until L produces one.
+- N (Playwright e2e) intentionally comes last: it's the phase most expensive to redo, so it should encode the UI's shape only once K/L/M have already reshaped it.
 
 ## Critical files
 - `CONTEXT.md` — domain vocabulary, authoritative
