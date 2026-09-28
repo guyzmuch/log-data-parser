@@ -45,3 +45,4 @@ column should displayed for the top one to the bottom, and we should order the c
 Posibility to save multiple view for one profile
 once the data is parsed, we should remove the insertion fields (or maybe hide it in a tab or something)
 like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
+option to trim all the cell (but not by default, because it might be usefull)
