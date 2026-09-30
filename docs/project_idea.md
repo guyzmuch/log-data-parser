@@ -51,3 +51,4 @@ be able to sort data by column (asc, desc)
 user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color). 
 maybe make the parsing of field via regex
 parse stack trace to multiline info (example error log in kibana)
+like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
