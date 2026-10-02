@@ -1,0 +1,9 @@
+timestamp | host | payload | level
+ 2026-01-15T12:30:00.000Z | "host-01" | {"user":"alice","action":"login","count":3} |"error"
+ 2026-01-15T12:30:48.137Z | "host-02" | {"user":"bob","action":"logout","count":12} |"error"
+ 2026-01-15T12:31:38.274Z | "host-03" | {"user":"carol","action":"upload","count":7} |"warning"
+ 2026-01-15T12:32:30.411Z | "host-04" | {"user":"dave","action":"delete","count":1} |"error"
+ 2026-01-15T12:33:24.548Z | "host-05" | {"user":"erin","action":"download","count":25} |"warning"
+ 2026-01-15T12:34:20.685Z | "host-06" | {"user":"frank","action":"login","count":0} |"error"
+ 2026-01-15T12:35:18.822Z | "host-07" | {"user":"grace","action":"update","count":9} |"info"
+ 2026-01-15T12:36:18.959Z | "host-08" | {"user":"heidi","action":"search","count":42} |"debug"

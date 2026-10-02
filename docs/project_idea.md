@@ -52,3 +52,5 @@ user can specify a column that would be color coded based on the data inside. ex
 maybe make the parsing of field via regex
 parse stack trace to multiline info (example error log in kibana)
 like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
+when opening a new profile creation wizard the form should be cleared
+All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
