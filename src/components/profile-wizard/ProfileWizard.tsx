@@ -21,6 +21,7 @@ import { parseDataset } from "@/core/parsing/parseDataset";
 import type { Delimiter } from "@/core/parsing/types";
 import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
 import { createDefaultDisplayConfig, createProfile } from "@/core/profile/createProfile";
+import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
 import type { Profile } from "@/core/profile/types";
 
 const DELIMITER_LABELS: Record<Delimiter, string> = {
@@ -91,8 +92,16 @@ function WizardForm({ onOpenChange, datasetRawText, initialProfile, onSave }: Wi
   );
 
   const preview = useMemo(
-    () => buildParsingPreview(sampleRawText, { delimiter, hasHeaderRow, stripQuotes, trimBoundaryPartials }),
-    [sampleRawText, delimiter, hasHeaderRow, stripQuotes, trimBoundaryPartials],
+    () =>
+      buildParsingPreview(sampleRawText, {
+        delimiter,
+        hasHeaderRow,
+        stripQuotes,
+        trimBoundaryPartials,
+        // Names a Profile was given (e.g. a built-in's) survive an edit; a header row overrides them.
+        fieldNames: initialProfile?.parsing.fieldNames,
+      }),
+    [sampleRawText, delimiter, hasHeaderRow, stripQuotes, trimBoundaryPartials, initialProfile],
   );
 
   function handleSave() {
@@ -101,10 +110,12 @@ function WizardForm({ onOpenChange, datasetRawText, initialProfile, onSave }: Wi
     // is only a small sample and must never leak into what gets saved.
     const { fieldNames: realFieldNames } = parseDataset(datasetRawText, preview.config);
 
-    // Parsing config changed, so the field set may have too — display config
-    // is regenerated fresh rather than trying to remap stale visible/hidden
-    // keys onto a potentially different field set.
-    const display = createDefaultDisplayConfig(realFieldNames);
+    // A new Profile starts with everything visible. When editing an existing one, keep what the user
+    // set up (labels, Derived Fields, visible columns, search) and only drop what no longer matches
+    // the Fields the new parsing config produces.
+    const display = initialProfile
+      ? reconcileDisplay(initialProfile.display, realFieldNames)
+      : createDefaultDisplayConfig(realFieldNames);
     const profile: Profile =
       initialProfile && !editingBuiltIn
         ? { ...initialProfile, name, parsing: preview.config, display, updatedAt: new Date().toISOString() }

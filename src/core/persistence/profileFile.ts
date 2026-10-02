@@ -1,5 +1,5 @@
 import type { Profile } from "@/core/profile/types";
-import { isProfile } from "@/core/profile/validateProfile";
+import { normalizeProfile } from "@/core/profile/validateProfile";
 
 const PROFILE_FILE_SCHEMA_VERSION = 1;
 
@@ -38,9 +38,15 @@ export async function importProfilesFromJSON(file: Blob): Promise<Profile[]> {
   if (schemaVersion !== PROFILE_FILE_SCHEMA_VERSION) {
     throw new ProfileImportError(`Unsupported Profile file version: ${schemaVersion}.`);
   }
-  if (!Array.isArray(profiles) || profiles.length === 0 || !profiles.every(isProfile)) {
+  if (!Array.isArray(profiles) || profiles.length === 0) {
     throw new ProfileImportError("File does not contain valid Profiles.");
   }
 
-  return profiles;
+  // Normalizing repairs stale display configs (e.g. unsupported Derived Field kinds) instead of importing them as-is.
+  const normalized = profiles.map(normalizeProfile);
+  if (!normalized.every((profile): profile is Profile => profile !== undefined)) {
+    throw new ProfileImportError("File does not contain valid Profiles.");
+  }
+
+  return normalized;
 }

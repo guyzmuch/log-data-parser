@@ -7,6 +7,8 @@ export interface DelimiterParsingChoices {
   hasHeaderRow: boolean;
   stripQuotes: boolean;
   trimBoundaryPartials: boolean;
+  /** Names to keep from an existing Profile (ignored when hasHeaderRow, where the header supplies them). */
+  fieldNames?: string[];
 }
 
 export interface ParsingPreview {
@@ -29,6 +31,7 @@ export function buildParsingPreview(sampleRawText: string, choices: DelimiterPar
     stripQuotes: choices.stripQuotes,
     trimBoundaryPartials: false,
     expectedFieldCount: 0,
+    ...(choices.fieldNames ? { fieldNames: choices.fieldNames } : {}),
   };
 
   const { records: untrimmedRecords } = parseDataset(sampleRawText, untrimmedConfig);

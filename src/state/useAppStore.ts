@@ -3,19 +3,24 @@ import type { Dataset, ParsedRecord } from "@/core/dataset/types";
 import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { discoverJsonKeys } from "@/core/derived-fields/discoverJsonKeys";
+import { isValidTimeZone } from "@/core/derived-fields/isValidTimeZone";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { listHiddenProfileIds, setHiddenProfileIds } from "@/core/persistence/hiddenProfiles";
 import { listProfiles, saveProfile, saveProfiles } from "@/core/persistence/localStorageProfileStore";
-import type { Profile, SearchState } from "@/core/profile/types";
+import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
+import { createProfile } from "@/core/profile/createProfile";
+import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
+import type { DisplayConfig, Profile, SearchState } from "@/core/profile/types";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
+
+/** How many leading Records are inspected when discovering JSON keys. */
+const JSON_KEY_SAMPLE_SIZE = 50;
 
 interface AppState {
   dataset: Dataset | null;
   /** Field keys parsing produced directly, before any Derived Fields. */
   baseFieldNames: string[];
-  /** baseFieldNames + the current derivedFieldSelections' keys — what ColumnControls iterates. */
-  fieldNames: string[];
   records: ParsedRecord[];
   activeProfile: Profile | null;
   /** Session-only; never persisted to the Profile (see Hidden Record in CONTEXT.md). */
@@ -30,13 +35,20 @@ interface AppState {
   hiddenProfileIds: Set<string>;
 
   loadDataset: (rawText: string) => void;
-  /** Re-parses the current Dataset with this Profile and makes it active. */
+  /**
+   * Re-parses the current Dataset with this Profile and makes it active. The Profile's display
+   * config is reconciled with the Fields this Dataset actually has (stale keys/specs dropped).
+   */
   applyProfile: (profile: Profile) => void;
   /** Persists the Profile, refreshes the picker list, then applies it. */
   saveAndApplyProfile: (profile: Profile) => void;
   /** Upserts every given Profile by id in one go and refreshes the picker list. Doesn't apply any of them. */
   importSavedProfiles: (profiles: Profile[]) => void;
-  /** Persists the current live display state (visible columns, order, labels, derived fields, search) back onto the active Profile. */
+  /**
+   * Persists the current live display state (visible columns, order, labels, derived fields, search)
+   * onto the active Profile. A built-in has no storage slot of its own, so saving its view forks it
+   * into a new user Profile "<name> (copy)" and makes that one active.
+   */
   saveCurrentView: () => void;
   /** Hides a Profile (built-in or user) from the picker's normal view. Persists across reloads. */
   hideProfile: (id: string) => void;
@@ -61,51 +73,71 @@ interface AppState {
   selectAllVisible: (visibleIndexesInOrder: number[]) => void;
   /** Removes every currently-visible Record from the selection (leaves selected-but-not-visible rows untouched). */
   deselectAllVisible: (visibleIndexesInOrder: number[]) => void;
-  /** Moves the current selection into hiddenRecordIndexes and clears the selection. */
-  hideSelectedRecords: () => void;
+  /**
+   * Moves the selected Records that are currently visible into hiddenRecordIndexes. Selected Records
+   * that a filter has hidden from view are neither hidden nor deselected, so this never acts on rows
+   * the user can't see (same rule as selectAllVisible/deselectAllVisible).
+   */
+  hideSelectedRecords: (visibleIndexesInOrder: number[]) => void;
   /** Clears hiddenRecordIndexes, making every Record visible again. */
   unhideAllRecords: () => void;
 
-  /** Adds the default ISO/local-time pair for a Field, if it doesn't already have a date Derived Field. No-op otherwise. */
+  /** Adds the default ISO/local-time pair for a Field. Specs it already has are skipped. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
-  /** Adds one more timezone-specific Derived Field for a Field — additive, never replaces existing ones. */
+  /** Adds one more timezone-specific Derived Field for a Field — additive, never replaces. No-op for an unknown timezone. */
   addTimezoneDerivedField: (sourceFieldKey: string, timezone: string) => void;
-  /** Adds an unescaped Derived Field for a Field, if it doesn't already have one. */
+  /** Adds an unescaped Derived Field for a Field. Skipped if it already has one. */
   addUnescapeDerivedField: (sourceFieldKey: string) => void;
-  /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if it already has any, or if nothing in the sample parses as a JSON object. */
+  /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if nothing in the sample parses as a JSON object. */
   addJsonKeyDerivedFields: (sourceFieldKey: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => {
-  /** Recomputes derivation over the current base Records and applies new display state in one go. */
-  function commitDerivedFieldSelections(derivedFieldSelections: DerivedFieldSpec[]) {
+  /** Applies a change to the active Profile's display config (no-op without an active Profile). */
+  function updateDisplay(update: (display: DisplayConfig) => DisplayConfig) {
+    const profile = get().activeProfile;
+    if (!profile) return;
+    set({ activeProfile: { ...profile, display: update(profile.display) } });
+  }
+
+  /**
+   * Adds Derived Field specs, skipping any whose key is already taken — by an existing Derived Field
+   * or by a base column (e.g. a JSON key "a.b" colliding with a column literally named "a.b") — then
+   * re-derives over the base Records and shows the new columns. No-op if nothing is new.
+   */
+  function addDerivedFields(specs: DerivedFieldSpec[]) {
     const { activeProfile, baseFieldNames, records } = get();
     if (!activeProfile) return;
 
-    const previousKeys = new Set(activeProfile.display.derivedFieldSelections.map(derivedFieldKey));
-    const newlyAddedKeys = derivedFieldSelections.map(derivedFieldKey).filter((key) => !previousKeys.has(key));
+    const takenKeys = new Set([...baseFieldNames, ...activeProfile.display.derivedFieldSelections.map(derivedFieldKey)]);
+    const newSpecs: DerivedFieldSpec[] = [];
+    for (const spec of specs) {
+      const key = derivedFieldKey(spec);
+      if (takenKeys.has(key)) continue;
+      takenKeys.add(key);
+      newSpecs.push(spec);
+    }
+    if (newSpecs.length === 0) return;
 
-    const updatedProfile: Profile = {
-      ...activeProfile,
-      display: {
-        ...activeProfile.display,
-        derivedFieldSelections,
-        // New Derived Fields default to visible, same as a freshly-created Profile's base fields.
-        visibleFieldKeys: [...activeProfile.display.visibleFieldKeys, ...newlyAddedKeys],
-      },
-    };
+    const derivedFieldSelections = [...activeProfile.display.derivedFieldSelections, ...newSpecs];
 
     set({
-      activeProfile: updatedProfile,
-      fieldNames: [...baseFieldNames, ...derivedFieldSelections.map(derivedFieldKey)],
       records: applyDerivedFields(records, derivedFieldSelections),
+      activeProfile: {
+        ...activeProfile,
+        display: {
+          ...activeProfile.display,
+          derivedFieldSelections,
+          // New Derived Fields default to visible, same as a freshly-created Profile's base fields.
+          visibleFieldKeys: [...activeProfile.display.visibleFieldKeys, ...newSpecs.map(derivedFieldKey)],
+        },
+      },
     });
   }
 
   return {
     dataset: null,
     baseFieldNames: [],
-    fieldNames: [],
     records: [],
     activeProfile: null,
     hiddenRecordIndexes: new Set(),
@@ -119,7 +151,6 @@ export const useAppStore = create<AppState>((set, get) => {
         dataset: { rawText },
         activeProfile: null,
         baseFieldNames: [],
-        fieldNames: [],
         records: [],
         hiddenRecordIndexes: new Set(),
         selectedRecordIndexes: new Set(),
@@ -133,23 +164,16 @@ export const useAppStore = create<AppState>((set, get) => {
       const dataset = get().dataset;
       if (!dataset) return;
       const { fieldNames: baseFieldNames, records: baseRecords } = parseDataset(dataset.rawText, profile.parsing);
-      const records = applyDerivedFields(baseRecords, profile.display.derivedFieldSelections);
-      const derivedKeys = profile.display.derivedFieldSelections.map(derivedFieldKey);
 
-      // A Profile with no Visible Fields set yet (e.g. a built-in template
-      // that's never seen this Dataset's actual Field names before) defaults
-      // to everything visible, same as a freshly-created Profile.
-      const visibleFieldKeys =
-        profile.display.visibleFieldKeys.length > 0
-          ? profile.display.visibleFieldKeys
-          : [...baseFieldNames, ...derivedKeys];
-      const appliedProfile: Profile = { ...profile, display: { ...profile.display, visibleFieldKeys } };
+      // A Profile may have been saved against other Fields (or carry stale Derived Field specs, or be a
+      // built-in template with nothing visible yet), so its display is reconciled with what this
+      // Dataset really parsed to before anything is derived or rendered.
+      const display = reconcileDisplay(profile.display, baseFieldNames);
 
       set({
-        activeProfile: appliedProfile,
+        activeProfile: { ...profile, display },
         baseFieldNames,
-        fieldNames: [...baseFieldNames, ...derivedKeys],
-        records,
+        records: applyDerivedFields(baseRecords, display.derivedFieldSelections),
         hiddenRecordIndexes: new Set(),
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
@@ -170,9 +194,13 @@ export const useAppStore = create<AppState>((set, get) => {
     saveCurrentView: () => {
       const profile = get().activeProfile;
       if (!profile) return;
-      const updatedProfile: Profile = { ...profile, updatedAt: new Date().toISOString() };
-      saveProfile(updatedProfile);
-      set({ activeProfile: updatedProfile, savedProfiles: listProfiles() });
+
+      const toSave: Profile = isBuiltInProfile(profile)
+        ? createProfile({ name: `${profile.name} (copy)`, parsing: profile.parsing, display: profile.display })
+        : { ...profile, updatedAt: new Date().toISOString() };
+
+      saveProfile(toSave);
+      set({ activeProfile: toSave, savedProfiles: listProfiles() });
     },
 
     hideProfile: (id) => {
@@ -190,56 +218,44 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     setVisibleFieldKeys: (keys) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      set({ activeProfile: { ...profile, display: { ...profile.display, visibleFieldKeys: keys } } });
+      updateDisplay((display) => ({ ...display, visibleFieldKeys: keys }));
     },
 
     toggleFieldVisibility: (key) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const { visibleFieldKeys } = profile.display;
-      const next = visibleFieldKeys.includes(key)
-        ? visibleFieldKeys.filter((k) => k !== key)
-        : [...visibleFieldKeys, key];
-      get().setVisibleFieldKeys(next);
+      updateDisplay((display) => ({
+        ...display,
+        visibleFieldKeys: display.visibleFieldKeys.includes(key)
+          ? display.visibleFieldKeys.filter((k) => k !== key)
+          : [...display.visibleFieldKeys, key],
+      }));
     },
 
     moveFieldUp: (key) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const keys = [...profile.display.visibleFieldKeys];
-      const i = keys.indexOf(key);
-      if (i <= 0) return;
-      [keys[i - 1], keys[i]] = [keys[i], keys[i - 1]];
-      get().setVisibleFieldKeys(keys);
-    },
-
-    moveFieldDown: (key) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const keys = [...profile.display.visibleFieldKeys];
-      const i = keys.indexOf(key);
-      if (i === -1 || i >= keys.length - 1) return;
-      [keys[i + 1], keys[i]] = [keys[i], keys[i + 1]];
-      get().setVisibleFieldKeys(keys);
-    },
-
-    renameField: (key, label) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      set({
-        activeProfile: {
-          ...profile,
-          display: { ...profile.display, fieldLabels: { ...profile.display.fieldLabels, [key]: label } },
-        },
+      updateDisplay((display) => {
+        const keys = [...display.visibleFieldKeys];
+        const i = keys.indexOf(key);
+        if (i <= 0) return display;
+        [keys[i - 1], keys[i]] = [keys[i], keys[i - 1]];
+        return { ...display, visibleFieldKeys: keys };
       });
     },
 
+    moveFieldDown: (key) => {
+      updateDisplay((display) => {
+        const keys = [...display.visibleFieldKeys];
+        const i = keys.indexOf(key);
+        if (i === -1 || i >= keys.length - 1) return display;
+        [keys[i + 1], keys[i]] = [keys[i], keys[i + 1]];
+        return { ...display, visibleFieldKeys: keys };
+      });
+    },
+
+    renameField: (key, label) => {
+      updateDisplay((display) => ({ ...display, fieldLabels: { ...display.fieldLabels, [key]: label } }));
+    },
+
     setSearchState: (search) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      set({ activeProfile: { ...profile, display: { ...profile.display, searchState: search } } });
+      updateDisplay((display) => ({ ...display, searchState: search }));
     },
 
     selectRecord: (index, modifiers, visibleIndexesInOrder) => {
@@ -266,11 +282,16 @@ export const useAppStore = create<AppState>((set, get) => {
       set({ selectedRecordIndexes: next });
     },
 
-    hideSelectedRecords: () => {
+    hideSelectedRecords: (visibleIndexesInOrder) => {
       const { hiddenRecordIndexes, selectedRecordIndexes } = get();
-      const next = new Set(hiddenRecordIndexes);
-      for (const index of selectedRecordIndexes) next.add(index);
-      set({ hiddenRecordIndexes: next, selectedRecordIndexes: new Set(), selectionAnchorIndex: null });
+      const hidden = new Set(hiddenRecordIndexes);
+      const stillSelected = new Set(selectedRecordIndexes);
+      for (const index of visibleIndexesInOrder) {
+        if (!selectedRecordIndexes.has(index)) continue;
+        hidden.add(index);
+        stillSelected.delete(index);
+      }
+      set({ hiddenRecordIndexes: hidden, selectedRecordIndexes: stillSelected, selectionAnchorIndex: null });
     },
 
     unhideAllRecords: () => {
@@ -278,67 +299,32 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     addDefaultDateDerivedFields: (sourceFieldKey) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const alreadyHasDate = profile.display.derivedFieldSelections.some(
-        (spec) => spec.kind === "date" && spec.sourceFieldKey === sourceFieldKey,
-      );
-      if (alreadyHasDate) return;
-
-      const newSpecs: DerivedFieldSpec[] = [
+      addDerivedFields([
         { kind: "date", sourceFieldKey, representation: "iso" },
         { kind: "date", sourceFieldKey, representation: "timezone" },
-      ];
-      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, ...newSpecs]);
+      ]);
     },
 
     addUnescapeDerivedField: (sourceFieldKey) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const alreadyExists = profile.display.derivedFieldSelections.some(
-        (spec) => spec.kind === "unescape" && spec.sourceFieldKey === sourceFieldKey,
-      );
-      if (alreadyExists) return;
-
-      const newSpec: DerivedFieldSpec = { kind: "unescape", sourceFieldKey };
-      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, newSpec]);
+      addDerivedFields([{ kind: "unescape", sourceFieldKey }]);
     },
 
     addJsonKeyDerivedFields: (sourceFieldKey) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const alreadyHasJson = profile.display.derivedFieldSelections.some(
-        (spec) => spec.kind === "json-key" && spec.sourceFieldKey === sourceFieldKey,
-      );
-      if (alreadyHasJson) return;
-
       // Discover keys from this Field's actual values across the current
       // Dataset (not the wizard's tiny sample — the real, already-parsed
       // Records) so the offered sub-columns match real data.
       const sampleValues = get()
-        .records.slice(0, 50)
+        .records.slice(0, JSON_KEY_SAMPLE_SIZE)
         .flatMap((record) => record.fields.filter((f) => f.key === sourceFieldKey).map((f) => f.value));
-      const keys = discoverJsonKeys(sampleValues);
-      if (keys.length === 0) return;
 
-      const newSpecs: DerivedFieldSpec[] = keys.map((jsonKey) => ({ kind: "json-key", sourceFieldKey, jsonKey }));
-      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, ...newSpecs]);
+      addDerivedFields(
+        discoverJsonKeys(sampleValues).map((jsonKey): DerivedFieldSpec => ({ kind: "json-key", sourceFieldKey, jsonKey })),
+      );
     },
 
     addTimezoneDerivedField: (sourceFieldKey, timezone) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const alreadyExists = profile.display.derivedFieldSelections.some(
-        (spec) =>
-          spec.kind === "date" &&
-          spec.sourceFieldKey === sourceFieldKey &&
-          spec.representation === "timezone" &&
-          spec.timezone === timezone,
-      );
-      if (alreadyExists) return;
-
-      const newSpec: DerivedFieldSpec = { kind: "date", sourceFieldKey, representation: "timezone", timezone };
-      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, newSpec]);
+      if (!isValidTimeZone(timezone)) return;
+      addDerivedFields([{ kind: "date", sourceFieldKey, representation: "timezone", timezone }]);
     },
   };
 });

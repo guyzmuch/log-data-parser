@@ -41,9 +41,15 @@ export function parseDataset(rawText: string, config: ParsingConfig): ParsedData
   // built-in Profile may only name the fields that reliably stay aligned —
   // see builtInProfiles.ts). Using config.fieldNames directly here would
   // silently truncate the list to its own length whenever it's shorter than
-  // the actual Record. Only fall back to it when there's no Record to ask
-  // (e.g. an empty Dataset, or boundary trim dropped every Record).
-  const resolvedFieldNames = records[0]?.fields.map((field) => field.key) ?? fieldNames ?? [];
+  // the actual Record. Take the *widest* Record, not the first: a short first
+  // line (clipped paste, ragged log) must not hide columns that later Records
+  // do have. Only fall back to config.fieldNames when there's no Record to
+  // ask (e.g. an empty Dataset, or boundary trim dropped every Record).
+  const widestRecord = records.reduce<ParsedRecord | undefined>(
+    (widest, record) => (widest === undefined || record.fields.length > widest.fields.length ? record : widest),
+    undefined,
+  );
+  const resolvedFieldNames = widestRecord?.fields.map((field) => field.key) ?? fieldNames ?? [];
 
   return { fieldNames: resolvedFieldNames, records };
 }

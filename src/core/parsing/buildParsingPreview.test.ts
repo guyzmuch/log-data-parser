@@ -63,4 +63,39 @@ describe("buildParsingPreview", () => {
 
     expect(parsed.records).toHaveLength(3);
   });
+
+  it("keeps field names handed in from an existing Profile when there is no header row", () => {
+    const { config, parsed } = buildParsingPreview("1.2.3.4 GET 200", {
+      delimiter: " ",
+      hasHeaderRow: false,
+      stripQuotes: false,
+      trimBoundaryPartials: false,
+      fieldNames: ["client_ip", "method"],
+    });
+
+    expect(config.fieldNames).toEqual(["client_ip", "method"]);
+    expect(parsed.fieldNames).toEqual(["client_ip", "method", "Field 3"]);
+  });
+
+  it("lets a header row override the handed-in field names", () => {
+    const { parsed } = buildParsingPreview("id,name\n1,alice", {
+      delimiter: ",",
+      hasHeaderRow: true,
+      stripQuotes: false,
+      trimBoundaryPartials: false,
+      fieldNames: ["old_a", "old_b"],
+    });
+
+    expect(parsed.fieldNames).toEqual(["id", "name"]);
+  });
+
+  it("leaves config.fieldNames unset when none are given", () => {
+    const { config } = buildParsingPreview("a,b", {
+      delimiter: ",",
+      hasHeaderRow: false,
+      stripQuotes: false,
+      trimBoundaryPartials: false,
+    });
+    expect("fieldNames" in config).toBe(false);
+  });
 });

@@ -29,8 +29,8 @@ describe("detectColumnPatterns", () => {
     expect(detectColumnPatterns(['He said \\"hi\\"', "line1\\nline2"])).toContain("stringified-escapes");
   });
 
-  it("detects whitespace padding", () => {
-    expect(detectColumnPatterns([" padded ", "  also padded"])).toContain("whitespace-padding");
+  it("does not report padding (cells are trimmed at parse time; there's no action for it)", () => {
+    expect(detectColumnPatterns([" padded ", "  also padded"])).toEqual([]);
   });
 
   it("detects nothing for plain unremarkable values", () => {

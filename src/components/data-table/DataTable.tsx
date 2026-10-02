@@ -58,7 +58,8 @@ export function DataTable() {
 
   const allVisibleSelected =
     visibleIndexesInOrder.length > 0 && visibleIndexesInOrder.every((index) => selectedRecordIndexes.has(index));
-  const someVisibleSelected = visibleIndexesInOrder.some((index) => selectedRecordIndexes.has(index));
+  const visibleSelectedCount = visibleIndexesInOrder.filter((index) => selectedRecordIndexes.has(index)).length;
+  const someVisibleSelected = visibleSelectedCount > 0;
   const headerCheckedState = allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false;
 
   function handleRowClick(event: MouseEvent, index: number) {
@@ -80,8 +81,13 @@ export function DataTable() {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" disabled={selectedRecordIndexes.size === 0} onClick={hideSelectedRecords}>
-          Hide selected ({selectedRecordIndexes.size})
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={visibleSelectedCount === 0}
+          onClick={() => hideSelectedRecords(visibleIndexesInOrder)}
+        >
+          Hide selected ({visibleSelectedCount})
         </Button>
         <Button variant="outline" size="sm" disabled={hiddenRecordIndexes.size === 0} onClick={unhideAllRecords}>
           Unhide all{hiddenRecordIndexes.size > 0 ? ` (${hiddenRecordIndexes.size})` : ""}

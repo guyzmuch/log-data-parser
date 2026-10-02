@@ -82,11 +82,31 @@ Greenfield Next.js static-export app. No existing code — this defines the init
 
 ### Phase F — Derived Fields (date parsing) + Parse Error state
 `src/core/derived-fields/`:
-- `DerivedFieldSpec` union, v1 variant: `{ kind: 'date'; sourceFieldKey: string; representation: 'raw'|'iso'|'timezone'; timezone?: string /* IANA, e.g. 'Europe/Paris'; omitted = browser-local */ }`.
-- `computeDerivedFields(field, specs): Field[]` — `new Date(field.value)` per spec; `isNaN(date.getTime())` → `Field` with `parseError: true` instead of a value; else format per representation (`toISOString()` for ISO, `Intl.DateTimeFormat` with `timeZone` for timezone/local).
-- "Force this Field as date" UI action (per-column header menu) adds the default trio (raw/ISO/local) to `Profile.display.derivedFieldSelections`, re-runs derivation over already-parsed Records (cheap, in-place — no re-parse of raw text). "Add timezone" appends one more spec — additive, never replacing.
+- `DerivedFieldSpec` union, v1 variant: `{ kind: 'date'; sourceFieldKey: string; representation: 'iso'|'timezone'; timezone?: string /* IANA, e.g. 'Europe/Paris'; omitted = browser-local */ }`. (A `'raw'` representation was dropped: it only duplicated the source column.) Further kinds were added later — see Phase F2.
+- `computeDerivedFields(field, specs): Field[]` — `parseFlexibleDate(field.value)` per spec; `isNaN(date.getTime())` → `Field` with `parseError: true` instead of a value; else format per representation (`toISOString()` for ISO, `Intl.DateTimeFormat` with `timeZone` for timezone/local).
+- "Force as date" UI action (per-column action row in the Columns panel) adds the default pair (ISO/local) to `Profile.display.derivedFieldSelections`, re-runs derivation over already-parsed Records (cheap, in-place — no re-parse of raw text). "Add timezone" appends one more spec — additive, never replacing.
 - Parse Error cells render distinctly (red text/badge, "Invalid parse") — a render-time check on the `Field`, not a separate tracking system.
 - **Verify:** Unit tests for `computeDerivedFields` — valid date across representations, invalid value → `parseError`, timezone formatting correctness for a fixed known instant. Manual/Playwright check of "force as date" → "add timezone" flow.
+
+### Phase F2 — Cell-level parsing, column-pattern detection, and e2e hardening — done
+Added after F, driven by real-usage feedback (padded/quoted/stringified-JSON log cells). Not in the original plan.
+
+Derived Fields (`src/core/derived-fields/`):
+- New `DerivedFieldSpec` kinds: `unescape` (decodes `\"`, `\\`, `\n`, `\t`, `\r`) and `json-key` (one spec per top-level key discovered by `discoverJsonKeys`; nested values are stringified, not exploded). Exposed as "Strip escapes" and "Force as JSON" in the Columns panel.
+- A `trim` Derived Field kind and its "Trim" button existed briefly and was **removed**: trimming now happens at parse time (below), so a second `(trimmed)` column was redundant, and it couldn't chain with other Derived Fields anyway.
+- JSON extraction is lenient (`tryParseJsonObjectLenient`): it also accepts a stringified object (`{\"a\":1}` or a fully quoted `"{\"a\":1}"`). This is the chosen alternative to real Derived Field chaining (unescape → JSON), which remains unsupported — Derived Fields only read base Fields. The strict `tryParseJsonObject` is kept for the detector.
+- `detectColumnPatterns` + the "detected: …" hint next to each column (`date`, `JSON`, `escaped chars`, `whitespace padding`): majority vote (≥ 50 %) over the first 50 values. Hints only propose; nothing is applied automatically.
+- `parseFlexibleDate` tightened: all-digit strings only count as epochs at 9–10 digits (seconds) or 12–13 digits (milliseconds) — short integers (ids, counts, durations) are not dates, and 11 digits is rejected as ambiguous. Non-numeric strings must also *look* like a date (ISO-ish, numeric with slashes, or containing a month/weekday name) before `Date` sees them, because V8 reads `host-01` as 1 Jan 2001.
+
+Parsing / wizard fixes:
+- **"Strip surrounding quotes" now trims blanks first, then strips one quote pair** (`stripQuotesFromValue`) for both cells and header names, so padded cells like ` "a" ` work and column names/CSV export carry no padding. Trimming only happens when that option is ticked; a general opt-in "trim all cells" option stays on the Phase L list.
+- `buildWizardSample` = true first line + middle sample of the *remaining* lines, so a small dataset no longer lists its header line twice in the preview.
+- The wizard's state lives in `WizardForm`, mounted inside `DialogContent`, so it's rebuilt on every open (delimiter re-detected, toggles reset) instead of leaking the previous Dataset's choices.
+- The wizard preview box is the only scroller (the shadcn `Table` container's own `overflow-x-auto` is neutralised there), so its horizontal scrollbar is always visible.
+
+Tests:
+- `e2e/helpers.ts` plus specs `json-cell-parsing`, `detected-hints`, `csv-export`, `wizard-preview-scroll` (against the sample files `json-cell-pipe.log` / `json-cell-stringified-pipe.log` in `public/samples/` and pasted datasets). These cover part of Phase N's golden path early — see Phase N.
+- Unit tests for every function above.
 
 ### Phase G — Search (Highlight / Filter)
 `src/core/search/`, `src/components/search-bar/`:
@@ -128,8 +148,24 @@ Decisions made:
 
 Still open, deliberately deferred: broader AWS format coverage (CloudTrail is JSON, out of scope for a delimiter-only parser; S3 access logs have the same quoting issue as ALB) and any real quote-aware parsing fix for the three approximate ones — both future work, not v1.
 
-### Phase K — Code review
-A structured pass over everything built in A–I (and J once it lands) before any UI rework starts, so the rework builds on a known-clean base rather than compounding on top of anything sloppy. Not designed yet — likely `/code-review` or `/simplify` against the whole diff since project start, covering: consistency of the store-mutation patterns in `useAppStore.ts`, any dead code or leftover duplication (e.g. the `derivedFieldKey` re-derivation risk noted in `ColumnControls.tsx`), test coverage gaps, and whether the "nothing fancy" simplifications taken along the way still hold up under real usage feedback gathered so far.
+### Phase K — Code review — done
+A structured pass over everything built in A–J and F2 before any UI rework starts, so the rework builds on a known-clean base rather than compounding on top of anything sloppy. Run as `/code-review` against the whole diff since project start (findings triaged, then fixed or moved to Phase L), covering: consistency of the store-mutation patterns in `useAppStore.ts`, any dead code or leftover duplication (e.g. the `derivedFieldKey` re-derivation risk noted in `ColumnControls.tsx`), test coverage gaps, and whether the "nothing fancy" simplifications taken along the way still hold up under real usage feedback gathered so far. Known items to check, from Phase F2:
+- Stored `derivedFieldSelections` are never validated on load, so a Profile saved with a since-removed kind (e.g. `trim`) would break `computeDerivedFields`.
+- The `whitespace padding` detector has no matching action and can no longer fire for data parsed with "Strip quotes" on — keep or drop.
+- Derived Fields can't be chained (they only read base Fields); the lenient JSON parser is a workaround.
+- `useAppStore.ts` action patterns (`addXDerivedField` are near-identical).
+
+**Outcome** (`/code-review` at high effort over `src/` and `e2e/`; 10 findings, all addressed):
+- Stored/imported Profiles go through `normalizeProfile` (replaces `isProfile`): a bad `parsing` rejects the Profile, a bad `display` is repaired and unsupported Derived Field kinds are dropped (`isDerivedFieldSpec`). `applyProfile` and the wizard's save then run `reconcileDisplay`, which drops specs/visible keys that don't match the Dataset's actual Fields.
+- "Save view" on a built-in forks it into a user "(copy)" instead of storing it under the built-in's id.
+- "Edit parsing…" keeps labels, Derived Fields, visible columns and search (reconciled), and keeps the Profile's `fieldNames` through the preview.
+- `parseDataset` takes the column list from the *widest* Record, so ragged data no longer loses columns.
+- "Hide selected" only hides selected rows the filter currently shows (`hideSelectedRecords(visibleIndexes)`).
+- Timezones are validated (`isValidTimeZone`) in the UI (inline message) and the store.
+- Performance: cached `Intl.DateTimeFormat` per timezone, one JSON/date parse per cell shared by all its specs, specs grouped by source Field, "detected" hints memoised on `records`. Table virtualization was *not* added — unmeasured, still "only if perf requires it".
+- Cleanup: dropped the unused `fieldNames` store field, merged the `add*DerivedField` actions into one dedup-by-key `addDerivedFields` plus an `updateDisplay` helper (also guards against a derived key colliding with a base column), removed `loadProfile`, the `whitespace padding` detector, and the rawText variant of `sampleMiddleLines` (it now takes a line array).
+- Tests: `useAppStore.test.ts` (the store had none), plus unit tests for each new function and `e2e/profile-editing.spec.ts`. Vitest now includes `src/**/*.test.ts`.
+- Kept on purpose: `deleteProfile` is still unused — there is no delete-Profile UI yet (added to Phase L).
 
 ### Phase L — Improvement list
 Turn the running "improvement seen while working" list in `docs/project_idea.md` into a scoped, ordered set of concrete changes — the planning pass that Phase M then executes. Not designed yet; known candidates already on that list as of this writing:
@@ -142,13 +178,19 @@ Turn the running "improvement seen while working" list in `docs/project_idea.md`
 - Support multiple saved views per Profile (a bigger data-model change — Profile currently has exactly one display config; this needs its own design pass on what a "view" is relative to a Profile).
 - Collapse/hide the dataset-input area once data is parsed (tab it away or similar), instead of always showing the paste/upload box.
 - Kibana-style filter in/out by a cell's exact content (click a cell value to add it as a filter).
-- An opt-in (not default) "trim all cells" option.
+- An opt-in (not default) "trim all cells" option, independent of "Strip quotes" (which already trims).
+- Quote-aware splitting (a delimiter inside a quoted value), which would also fix the three "approximate" built-in Profiles.
+- Real chaining of Derived Fields (unescape → JSON → date), if the lenient-JSON workaround proves too narrow.
+- A way to delete a saved Profile (`deleteProfile` exists in persistence but nothing calls it).
+- Delimiter auto-detection is fooled by padded delimiters: for `a | b | c` data the space scores higher than the pipe, so the wizard preselects "Space". Needs a smarter heuristic (e.g. ignore blanks next to another delimiter candidate).
+- Table virtualization / paging, if large logs turn out slow in practice.
 - **Verify:** TBD — this phase's own output is the scoped plan for Phase M, not code.
 
 ### Phase M — UI rework
 Implements whatever Phase L scoped. Not designed yet, since it depends entirely on L's output.
 
 ### Phase N — Playwright e2e (golden path)
+Partly covered early by Phase F2's specs (upload/paste → wizard → table, force as date/JSON/unescape, "detected" hints, CSV export of "all"). Still to write here: hide/re-show columns, search Highlight/Filter, row multi-select + hide, CSV export for the other two scopes, and profile persistence — plus a final end-to-end spec tying the golden path together.
 `e2e/`:
 - `golden-path.spec.ts`: paste a small multi-line sample → wizard (delimiter auto-detect, confirm toggles) → save Profile → table renders expected columns/rows → hide a Field → re-show it (assert underlying data unaffected) → force a column as date → verify Derived Field columns appear and a bad value shows Parse Error → search + toggle Highlight/Filter → multi-select rows and hide → export CSV with each of the 3 scopes and assert downloaded content.
 - `profile-persistence.spec.ts`: save Profile, reload, confirm it's listed; export to JSON, clear localStorage, import back, confirm identical behavior.

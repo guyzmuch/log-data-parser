@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/core/**/*.test.ts"],
+    include: ["src/**/*.test.ts"],
     environment: "node",
     // Cap worker processes so a full run doesn't spike CPU/memory (each
     // worker spawns its own isolated environment) — the suite is small and

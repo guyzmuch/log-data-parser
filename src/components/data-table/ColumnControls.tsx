@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { detectColumnPatterns, type ColumnPatternKind } from "@/core/derived-fields/detectColumnPatterns";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { isValidTimeZone } from "@/core/derived-fields/isValidTimeZone";
 import { useAppStore } from "@/state/useAppStore";
 
 const PATTERN_LABELS: Record<ColumnPatternKind, string> = {
   date: "date",
   json: "JSON",
   "stringified-escapes": "escaped chars",
-  "whitespace-padding": "whitespace padding",
 };
 
 const SAMPLE_SIZE = 50;
@@ -75,6 +75,20 @@ export function ColumnControls() {
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
 
   const [timezoneDrafts, setTimezoneDrafts] = useState<Record<string, string>>({});
+  const [timezoneErrors, setTimezoneErrors] = useState<Record<string, string>>({});
+
+  // Detection looks at the parsed values only, so it must not re-run on every search/timezone keystroke
+  // (those change the store/state but not `records`).
+  const detectedByField = useMemo(() => {
+    const detected: Record<string, ColumnPatternKind[]> = {};
+    for (const baseKey of baseFieldNames) {
+      const sampleValues = records
+        .slice(0, SAMPLE_SIZE)
+        .flatMap((record) => record.fields.filter((f) => f.key === baseKey).map((f) => f.value));
+      detected[baseKey] = detectColumnPatterns(sampleValues);
+    }
+    return detected;
+  }, [baseFieldNames, records]);
 
   if (!activeProfile || baseFieldNames.length === 0) return null;
 
@@ -89,10 +103,7 @@ export function ColumnControls() {
         const hasUnescape = derivedForField.some((spec) => spec.kind === "unescape");
         const hasJson = derivedForField.some((spec) => spec.kind === "json-key");
 
-        const sampleValues = records
-          .slice(0, SAMPLE_SIZE)
-          .flatMap((record) => record.fields.filter((f) => f.key === baseKey).map((f) => f.value));
-        const detected = detectColumnPatterns(sampleValues);
+        const detected = detectedByField[baseKey] ?? [];
 
         return (
           <div key={baseKey} className="flex flex-col gap-1">
@@ -133,7 +144,11 @@ export function ColumnControls() {
                   className="h-6 w-36"
                   placeholder="e.g. Europe/Paris"
                   value={timezoneDrafts[baseKey] ?? ""}
-                  onChange={(event) => setTimezoneDrafts((prev) => ({ ...prev, [baseKey]: event.target.value }))}
+                  aria-invalid={timezoneErrors[baseKey] ? true : undefined}
+                  onChange={(event) => {
+                    setTimezoneDrafts((prev) => ({ ...prev, [baseKey]: event.target.value }));
+                    setTimezoneErrors((prev) => ({ ...prev, [baseKey]: "" }));
+                  }}
                 />
                 <Button
                   variant="outline"
@@ -142,12 +157,17 @@ export function ColumnControls() {
                   onClick={() => {
                     const timezone = timezoneDrafts[baseKey]?.trim();
                     if (!timezone) return;
+                    if (!isValidTimeZone(timezone)) {
+                      setTimezoneErrors((prev) => ({ ...prev, [baseKey]: `"${timezone}" is not a known timezone (use e.g. Europe/Paris).` }));
+                      return;
+                    }
                     addTimezoneDerivedField(baseKey, timezone);
                     setTimezoneDrafts((prev) => ({ ...prev, [baseKey]: "" }));
                   }}
                 >
                   Add timezone
                 </Button>
+                {timezoneErrors[baseKey] && <span className="text-xs text-destructive">{timezoneErrors[baseKey]}</span>}
               </div>
             )}
           </div>

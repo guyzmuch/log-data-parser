@@ -1,4 +1,4 @@
-import { sampleMiddleOf } from "@/core/parsing/sampleMiddleLines";
+import { sampleMiddleLines } from "@/core/parsing/sampleMiddleLines";
 import { splitIntoRecords } from "@/core/parsing/splitIntoRecords";
 
 /**
@@ -16,5 +16,5 @@ export function buildWizardSample(rawText: string, middleSampleSize: number): st
   if (lines.length === 0) return [];
 
   const [firstLine, ...bodyLines] = lines;
-  return [firstLine, ...sampleMiddleOf(bodyLines, middleSampleSize)];
+  return [firstLine, ...sampleMiddleLines(bodyLines, middleSampleSize)];
 }

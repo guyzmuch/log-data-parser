@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
-import { deleteProfile, listProfiles, loadProfile, saveProfile } from "@/core/persistence/localStorageProfileStore";
+import { deleteProfile, listProfiles, saveProfile } from "@/core/persistence/localStorageProfileStore";
 import { createDefaultDisplayConfig, createProfile } from "@/core/profile/createProfile";
 import type { DelimiterParsingConfig } from "@/core/parsing/types";
 
@@ -31,14 +31,34 @@ describe("localStorageProfileStore", () => {
     expect(listProfiles()).toEqual([profile]);
   });
 
-  it("loads a Profile by id", () => {
-    const profile = makeProfile("nginx");
-    saveProfile(profile);
-    expect(loadProfile(profile.id)).toEqual(profile);
+  it("repairs a stored Profile with an unsupported Derived Field kind instead of exposing it", () => {
+    const profile = makeProfile("legacy");
+    const legacy = {
+      ...profile,
+      display: {
+        ...profile.display,
+        derivedFieldSelections: [
+          { kind: "trim", sourceFieldKey: "a" }, // a kind that no longer exists
+          { kind: "unescape", sourceFieldKey: "a" },
+        ],
+      },
+    };
+    localStorage.setItem(
+      "log-data-parser:profiles",
+      JSON.stringify({ schemaVersion: 1, profiles: [legacy] }),
+    );
+
+    expect(listProfiles()[0].display.derivedFieldSelections).toEqual([{ kind: "unescape", sourceFieldKey: "a" }]);
   });
 
-  it("returns undefined when loading an unknown id", () => {
-    expect(loadProfile("does-not-exist")).toBeUndefined();
+  it("drops a stored entry whose parsing config is unusable", () => {
+    const profile = makeProfile("broken");
+    localStorage.setItem(
+      "log-data-parser:profiles",
+      JSON.stringify({ schemaVersion: 1, profiles: [{ ...profile, parsing: { kind: "regex" } }] }),
+    );
+
+    expect(listProfiles()).toEqual([]);
   });
 
   it("replaces a Profile with the same id instead of duplicating it", () => {

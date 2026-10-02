@@ -1,5 +1,5 @@
 import type { Profile } from "@/core/profile/types";
-import { isProfile } from "@/core/profile/validateProfile";
+import { normalizeProfile } from "@/core/profile/validateProfile";
 
 const STORAGE_KEY = "log-data-parser:profiles";
 const SCHEMA_VERSION = 1;
@@ -28,8 +28,10 @@ function readSnapshot(): ProfileStoreSnapshot {
     if (typeof parsed !== "object" || parsed === null || !Array.isArray((parsed as { profiles?: unknown }).profiles)) {
       return emptySnapshot();
     }
-    // Drop any corrupt entries individually rather than discarding the whole store.
-    const profiles = (parsed as { profiles: unknown[] }).profiles.filter(isProfile);
+    // Repair stale entries and drop corrupt ones individually, rather than discarding the whole store.
+    const profiles = (parsed as { profiles: unknown[] }).profiles
+      .map(normalizeProfile)
+      .filter((profile): profile is Profile => profile !== undefined);
     return { schemaVersion: SCHEMA_VERSION, profiles };
   } catch {
     return emptySnapshot();
@@ -43,10 +45,6 @@ function writeSnapshot(snapshot: ProfileStoreSnapshot): void {
 
 export function listProfiles(): Profile[] {
   return readSnapshot().profiles;
-}
-
-export function loadProfile(id: string): Profile | undefined {
-  return readSnapshot().profiles.find((profile) => profile.id === id);
 }
 
 /** Inserts a new Profile, or replaces the existing one with the same id. */

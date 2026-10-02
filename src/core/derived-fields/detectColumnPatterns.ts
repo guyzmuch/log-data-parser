@@ -1,7 +1,7 @@
 import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
 import { tryParseJsonObject } from "@/core/derived-fields/parseJsonObject";
 
-export type ColumnPatternKind = "date" | "json" | "stringified-escapes" | "whitespace-padding";
+export type ColumnPatternKind = "date" | "json" | "stringified-escapes";
 
 interface ColumnPatternDetector {
   kind: ColumnPatternKind;
@@ -12,7 +12,6 @@ const DETECTORS: ColumnPatternDetector[] = [
   { kind: "date", test: (value) => !Number.isNaN(parseFlexibleDate(value).getTime()) },
   { kind: "json", test: (value) => tryParseJsonObject(value) !== undefined },
   { kind: "stringified-escapes", test: (value) => /\\[ntr"\\]/.test(value) },
-  { kind: "whitespace-padding", test: (value) => value.trim() !== "" && value !== value.trim() },
 ];
 
 const DEFAULT_THRESHOLD = 0.5;

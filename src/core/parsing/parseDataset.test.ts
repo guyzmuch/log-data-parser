@@ -76,4 +76,17 @@ describe("parseDataset", () => {
     const result = parseDataset("b,c\na,b,c\nd,e,f", baseConfig({ expectedFieldCount: 3 }));
     expect(result.records).toHaveLength(3);
   });
+
+  it("keeps the extra columns of wider later Records when the first Record is short (ragged data)", () => {
+    const result = parseDataset("a,b\nc,d,e,f\ng,h,i", baseConfig());
+    expect(result.fieldNames).toEqual(["Field 1", "Field 2", "Field 3", "Field 4"]);
+    // The short Records simply have no value for the missing Fields.
+    expect(result.records[0].fields).toHaveLength(2);
+    expect(result.records[1].fields).toHaveLength(4);
+  });
+
+  it("takes names for a ragged Dataset from the widest Record, with header names first", () => {
+    const result = parseDataset("id,name\n1,alice\n2,bob,extra", baseConfig({ hasHeaderRow: true }));
+    expect(result.fieldNames).toEqual(["id", "name", "Field 3"]);
+  });
 });
