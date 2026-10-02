@@ -19,8 +19,6 @@ export function derivedFieldKey(spec: DerivedFieldSpec): string {
   switch (spec.kind) {
     case "date":
       return dateKey(spec);
-    case "trim":
-      return `${spec.sourceFieldKey} (trimmed)`;
     case "unescape":
       return `${spec.sourceFieldKey} (unescaped)`;
     case "json-key":

@@ -1,7 +1,7 @@
 import type { Field } from "@/core/dataset/types";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
-import { stringifyJsonValue, tryParseJsonObject } from "@/core/derived-fields/parseJsonObject";
+import { stringifyJsonValue, tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
 import type { DateDerivedFieldSpec, DerivedFieldSpec, JsonKeyDerivedFieldSpec } from "@/core/derived-fields/types";
 import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 
@@ -29,7 +29,7 @@ function computeDate(field: Field, spec: DateDerivedFieldSpec, key: string): Fie
 }
 
 function computeJsonKey(field: Field, spec: JsonKeyDerivedFieldSpec, key: string): Field {
-  const parsed = tryParseJsonObject(field.value);
+  const parsed = tryParseJsonObjectLenient(field.value);
   if (!parsed) {
     return { key, value: "", sourceFieldKey: field.key, parseError: true };
   }
@@ -46,8 +46,6 @@ function computeOne(field: Field, spec: DerivedFieldSpec): Field {
   switch (spec.kind) {
     case "date":
       return computeDate(field, spec, key);
-    case "trim":
-      return { key, value: field.value.trim(), sourceFieldKey: field.key };
     case "unescape":
       return { key, value: unescapeStringified(field.value), sourceFieldKey: field.key };
     case "json-key":

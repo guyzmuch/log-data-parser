@@ -71,7 +71,6 @@ export function ColumnControls() {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const addDefaultDateDerivedFields = useAppStore((s) => s.addDefaultDateDerivedFields);
   const addTimezoneDerivedField = useAppStore((s) => s.addTimezoneDerivedField);
-  const addTrimDerivedField = useAppStore((s) => s.addTrimDerivedField);
   const addUnescapeDerivedField = useAppStore((s) => s.addUnescapeDerivedField);
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
 
@@ -87,7 +86,6 @@ export function ColumnControls() {
       {baseFieldNames.map((baseKey) => {
         const derivedForField = derivedFieldSelections.filter((spec) => spec.sourceFieldKey === baseKey);
         const hasDate = derivedForField.some((spec) => spec.kind === "date");
-        const hasTrim = derivedForField.some((spec) => spec.kind === "trim");
         const hasUnescape = derivedForField.some((spec) => spec.kind === "unescape");
         const hasJson = derivedForField.some((spec) => spec.kind === "json-key");
 
@@ -121,11 +119,6 @@ export function ColumnControls() {
               {!hasUnescape && (
                 <Button variant="outline" size="xs" onClick={() => addUnescapeDerivedField(baseKey)}>
                   Strip escapes
-                </Button>
-              )}
-              {!hasTrim && (
-                <Button variant="outline" size="xs" onClick={() => addTrimDerivedField(baseKey)}>
-                  Trim
                 </Button>
               )}
             </div>

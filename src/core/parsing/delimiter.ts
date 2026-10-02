@@ -15,14 +15,20 @@ export function splitDelimitedLine(raw: string, delimiter: Delimiter): string[] 
   return raw.split(delimiter);
 }
 
-/** Strips one matching pair of leading/trailing double or single quotes, if present. */
+/**
+ * Trims blanks around the value, then strips one matching pair of
+ * leading/trailing double or single quotes, if present. Trimming comes first
+ * so padded cells like ` "a" ` (common with `a | b` style delimiters) still
+ * lose their quotes; blanks *inside* the quotes are kept.
+ */
 export function stripQuotesFromValue(value: string): string {
-  if (value.length >= 2) {
-    const first = value[0];
-    const last = value[value.length - 1];
+  const trimmed = value.trim();
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
     if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-      return value.slice(1, -1);
+      return trimmed.slice(1, -1);
     }
   }
-  return value;
+  return trimmed;
 }

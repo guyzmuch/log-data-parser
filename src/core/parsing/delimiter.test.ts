@@ -46,4 +46,20 @@ describe("stripQuotesFromValue", () => {
   it("leaves a single quote character untouched", () => {
     expect(stripQuotesFromValue('"')).toBe('"');
   });
+
+  it("strips quotes surrounded by blanks (trim first, then unquote)", () => {
+    expect(stripQuotesFromValue(' "hello" ')).toBe("hello");
+  });
+
+  it("trims blanks around an unquoted value", () => {
+    expect(stripQuotesFromValue("  hello ")).toBe("hello");
+  });
+
+  it("keeps blanks inside the quotes", () => {
+    expect(stripQuotesFromValue('" hello "')).toBe(" hello ");
+  });
+
+  it("turns a blank-only value into an empty string", () => {
+    expect(stripQuotesFromValue("   ")).toBe("");
+  });
 });

@@ -70,8 +70,6 @@ interface AppState {
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
   /** Adds one more timezone-specific Derived Field for a Field — additive, never replaces existing ones. */
   addTimezoneDerivedField: (sourceFieldKey: string, timezone: string) => void;
-  /** Adds a trimmed Derived Field for a Field, if it doesn't already have one. */
-  addTrimDerivedField: (sourceFieldKey: string) => void;
   /** Adds an unescaped Derived Field for a Field, if it doesn't already have one. */
   addUnescapeDerivedField: (sourceFieldKey: string) => void;
   /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if it already has any, or if nothing in the sample parses as a JSON object. */
@@ -292,18 +290,6 @@ export const useAppStore = create<AppState>((set, get) => {
         { kind: "date", sourceFieldKey, representation: "timezone" },
       ];
       commitDerivedFieldSelections([...profile.display.derivedFieldSelections, ...newSpecs]);
-    },
-
-    addTrimDerivedField: (sourceFieldKey) => {
-      const profile = get().activeProfile;
-      if (!profile) return;
-      const alreadyExists = profile.display.derivedFieldSelections.some(
-        (spec) => spec.kind === "trim" && spec.sourceFieldKey === sourceFieldKey,
-      );
-      if (alreadyExists) return;
-
-      const newSpec: DerivedFieldSpec = { kind: "trim", sourceFieldKey };
-      commitDerivedFieldSelections([...profile.display.derivedFieldSelections, newSpec]);
     },
 
     addUnescapeDerivedField: (sourceFieldKey) => {

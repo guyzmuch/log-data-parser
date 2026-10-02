@@ -54,3 +54,5 @@ parse stack trace to multiline info (example error log in kibana)
 like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
 when opening a new profile creation wizard the form should be cleared
 All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
+when parsing a column in a certain way, add the new column after the "parent" column, and unmark the parent column to hide it (because by default, we would only want the parsed data, not the raw one)
+for the autodetected parsing of data, add some specific styling to the button that will do this (like a star or something) so it stand out

@@ -6,7 +6,14 @@ import { splitIntoRecords } from "@/core/parsing/splitIntoRecords";
  * parsing config off a clipped boundary line would poison the config.
  */
 export function sampleMiddleLines(rawText: string, count: number): string[] {
-  const lines = splitIntoRecords(rawText).map((line) => line.raw);
+  return sampleMiddleOf(
+    splitIntoRecords(rawText).map((line) => line.raw),
+    count,
+  );
+}
+
+/** Same as sampleMiddleLines, for lines that are already split. */
+export function sampleMiddleOf(lines: string[], count: number): string[] {
   if (lines.length <= count) return lines;
 
   const start = Math.floor((lines.length - count) / 2);

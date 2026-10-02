@@ -25,10 +25,6 @@ describe("derivedFieldKey", () => {
     );
   });
 
-  it("names a trim derived field", () => {
-    expect(derivedFieldKey({ kind: "trim", sourceFieldKey: "message" })).toBe("message (trimmed)");
-  });
-
   it("names an unescape derived field", () => {
     expect(derivedFieldKey({ kind: "unescape", sourceFieldKey: "message" })).toBe("message (unescaped)");
   });

@@ -6,6 +6,21 @@ describe("detectColumnPatterns", () => {
     expect(detectColumnPatterns(["2026-01-15T12:30:00.000Z", "2026-01-16T08:00:00.000Z"])).toContain("date");
   });
 
+  it("detects epoch seconds and milliseconds as dates", () => {
+    expect(detectColumnPatterns(["1768480200", "1768480256"])).toContain("date");
+    expect(detectColumnPatterns(["1768480200000", "1768480256000"])).toContain("date");
+  });
+
+  it("does not detect small integers (ids, counts, durations) as dates", () => {
+    expect(detectColumnPatterns(["1", "2", "3", "4"])).not.toContain("date");
+    expect(detectColumnPatterns(["142", "89", "2350", "56"])).not.toContain("date");
+  });
+
+  it("does not detect a stringified JSON column as JSON (it is reported as escaped chars)", () => {
+    const sample = ['{\\"user\\":\\"alice\\"}', '{\\"user\\":\\"bob\\"}'];
+    expect(detectColumnPatterns(sample)).toEqual(["stringified-escapes"]);
+  });
+
   it("detects a JSON column", () => {
     expect(detectColumnPatterns(['{"a":1}', '{"b":2}'])).toContain("json");
   });

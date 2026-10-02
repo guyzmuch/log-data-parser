@@ -16,12 +16,6 @@ export interface DateDerivedFieldSpec {
   timezone?: IanaTimeZone;
 }
 
-/** Trims leading/trailing whitespace from the source Field's value. */
-export interface TrimDerivedFieldSpec {
-  kind: "trim";
-  sourceFieldKey: string;
-}
-
 /** Un-escapes common backslash sequences (\", \\, \n, \t, \r) from a stringified value. */
 export interface UnescapeDerivedFieldSpec {
   kind: "unescape";
@@ -42,6 +36,5 @@ export interface JsonKeyDerivedFieldSpec {
 
 export type DerivedFieldSpec =
   | DateDerivedFieldSpec
-  | TrimDerivedFieldSpec
   | UnescapeDerivedFieldSpec
   | JsonKeyDerivedFieldSpec;

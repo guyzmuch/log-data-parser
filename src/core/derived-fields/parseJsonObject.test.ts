@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stringifyJsonValue, tryParseJsonObject } from "@/core/derived-fields/parseJsonObject";
+import { stringifyJsonValue, tryParseJsonObject, tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
 
 describe("tryParseJsonObject", () => {
   it("parses a valid JSON object", () => {
@@ -25,6 +25,35 @@ describe("tryParseJsonObject", () => {
 
   it("rejects an empty string", () => {
     expect(tryParseJsonObject("")).toBeUndefined();
+  });
+});
+
+describe("tryParseJsonObjectLenient", () => {
+  it("parses plain JSON like the strict version", () => {
+    expect(tryParseJsonObjectLenient('{"a":1}')).toEqual({ a: 1 });
+  });
+
+  it("parses a stringified object whose quotes were already stripped (backslash escapes left over)", () => {
+    expect(tryParseJsonObjectLenient('{\\"user\\":\\"alice\\",\\"count\\":3}')).toEqual({ user: "alice", count: 3 });
+  });
+
+  it("parses a fully quoted stringified object", () => {
+    expect(tryParseJsonObjectLenient('"{\\"user\\":\\"alice\\"}"')).toEqual({ user: "alice" });
+  });
+
+  it("tolerates blanks around a stringified object", () => {
+    expect(tryParseJsonObjectLenient(' {\\"a\\":1} ')).toEqual({ a: 1 });
+  });
+
+  it("still rejects arrays, primitives and garbage", () => {
+    expect(tryParseJsonObjectLenient("[1,2]")).toBeUndefined();
+    expect(tryParseJsonObjectLenient('"just a string"')).toBeUndefined();
+    expect(tryParseJsonObjectLenient('{"a":')).toBeUndefined();
+    expect(tryParseJsonObjectLenient("")).toBeUndefined();
+  });
+
+  it("the strict version still refuses a stringified object (so the detector reports escapes, not JSON)", () => {
+    expect(tryParseJsonObject('{\\"a\\":1}')).toBeUndefined();
   });
 });
 

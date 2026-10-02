@@ -64,20 +64,6 @@ describe("computeDerivedFields", () => {
     expect(results.every((f) => f.parseError === undefined)).toBe(true);
   });
 
-  describe("trim", () => {
-    it("trims leading/trailing whitespace", () => {
-      const specs: DerivedFieldSpec[] = [{ kind: "trim", sourceFieldKey: "created" }];
-      const [result] = computeDerivedFields(field("  padded value  "), specs);
-      expect(result).toEqual({ key: "created (trimmed)", value: "padded value", sourceFieldKey: "created" });
-    });
-
-    it("never produces a Parse Error — trimming can't fail", () => {
-      const specs: DerivedFieldSpec[] = [{ kind: "trim", sourceFieldKey: "created" }];
-      const [result] = computeDerivedFields(field(""), specs);
-      expect(result.parseError).toBeUndefined();
-    });
-  });
-
   describe("unescape", () => {
     it("un-escapes common backslash sequences", () => {
       const specs: DerivedFieldSpec[] = [{ kind: "unescape", sourceFieldKey: "created" }];
