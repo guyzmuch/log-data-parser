@@ -15,6 +15,12 @@ export interface DisplayConfig {
    * Fields (see Field vs. Visible Field in CONTEXT.md).
    */
   visibleFieldKeys: string[];
+  /**
+   * Every Field key in the user's chosen order, hidden ones included, so a hidden column keeps its
+   * place and comes back where it was. `visibleFieldKeys` is the shown subset, in this same order.
+   * Optional only for Profiles saved before this existed; reconcileDisplay fills it in on apply.
+   */
+  fieldOrder?: string[];
   fieldLabels: Record<string, string>;
   derivedFieldSelections: DerivedFieldSpec[];
   searchState?: SearchState;

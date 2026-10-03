@@ -167,8 +167,8 @@ A structured pass over everything built in A–J and F2 before any UI rework sta
 - Tests: `useAppStore.test.ts` (the store had none), plus unit tests for each new function and `e2e/profile-editing.spec.ts`. Vitest now includes `src/**/*.test.ts`.
 - Kept on purpose: `deleteProfile` is still unused — there is no delete-Profile UI yet (added to Phase L).
 
-### Phase L — Improvement list
-Turn the running "improvement seen while working" list in `docs/project_idea.md` into a scoped, ordered set of concrete changes — the planning pass that Phase M then executes. Not designed yet; known candidates already on that list as of this writing:
+### Phase L — Improvement list — done (scoped by a design review, then built in M)
+Turn the running "improvement seen while working" list in `docs/project_idea.md` into a scoped, ordered set of concrete changes — the planning pass that Phase M then executes. Scoped through a design review of the live page (screenshots + mockups); what was taken into Phase M, and what was left out, is listed under Phase M below. Candidates that were on the list:
 - Widen the interface layout.
 - Better UI for column selection generally.
 - Shift-click to unselect a range of *columns* in the Columns panel (distinct from the existing row shift-click).
@@ -186,11 +186,34 @@ Turn the running "improvement seen while working" list in `docs/project_idea.md`
 - Table virtualization / paging, if large logs turn out slow in practice.
 - **Verify:** TBD — this phase's own output is the scoped plan for Phase M, not code.
 
-### Phase M — UI rework
-Implements whatever Phase L scoped. Not designed yet, since it depends entirely on L's output.
+### Phase M — UI rework — done
+Implements the design review. The page used to be one stack of panels (dataset box, profile buttons, Columns block, search, export, table); it is now an app shell: top bar, toolbar, and a table that fills the rest of the window.
+
+Layout and flow (`src/components/app-shell/`, `src/app/page.tsx`):
+- **Empty state** (`DatasetInput.tsx`): drop zone + "Choose file…", paste box, and one-click samples from `public/samples/`. After loading it disappears (the "collapse the dataset input" item); **Replace…** in the top bar brings it back. `Dataset` gained an optional `name`. Replace… is non-destructive: the current data, profile and column setup stay in the store (`replacing` flag) and a "Back to <file>" button returns to them; only loading something new replaces them.
+- **Top bar** (`TopBar.tsx`): file chip (name, lines, columns), a **profile dropdown** (`ProfileMenu.tsx`: your profiles, built-ins, "New profile…", "Manage profiles…"), "Edit parsing…", "Save view", and a "…" menu for importing/exporting profiles. Hiding profiles moved into `ManageProfilesDialog.tsx`.
+- Between loading a file and picking a profile, `ProfileChooser.tsx` offers the profiles and "New profile…". The wizard is mounted once (`ProfileWizardHost.tsx`) and driven by `wizardTarget` in the store.
+- **Toolbar** (`TableToolbar.tsx`): search with Highlight/Filter, selection and hidden-row chips that only appear when they apply (`SelectionChips.tsx`), the Columns popover, and Export CSV with a scope dropdown.
+
+The table and its columns (`src/components/data-table/`):
+- Sticky header, a "#" column (ordinal among parsed records) next to the row checkbox, tinted Derived Field columns captioned "from payload · JSON", and one scroll box so both scrollbars are always on screen.
+- **Per-column header menu** (`ColumnHeader.tsx`) replaces the Columns block: rename (inline), hide, move left/right, and Derive new column (Parse as date, Extract JSON keys, Strip escape characters, Add timezone…). Detection chips ("date", "JSON", "escaped chars") sit on the header, and the detected derivation is offered first, marked "detected". Timezones are added through `TimezoneDialog.tsx`.
+- **Columns popover** (`ColumnsPopover.tsx`): find by name, show all / hide all / reset order, eye toggles, and drag-and-drop reordering. A hidden column keeps its place: `DisplayConfig.fieldOrder` holds the full column order (hidden columns included) and `visibleFieldKeys` is its shown subset, so hiding and re-showing a column puts it back where it was (`core/profile/fieldOrder.ts`; `reconcileDisplay` fills `fieldOrder` for Profiles saved without it). Backed by new store actions `moveFieldBefore`, `showAllFields`, `hideAllFields`, `resetFieldOrder` (and `clearSelection`, `clearDataset`).
+- `useVisibleRecords` and `useDetectedPatterns` hooks give the table and toolbar one shared definition of "visible rows" and one memoised detection pass.
+
+Wizard (`ProfileWizard.tsx`): a wide two-column dialog (options left, preview right), delimiter as a segmented control with the auto-detected one named, each toggle with a one-line explanation (the quote option is now "Trim cells & strip quotes"), "#" column in the preview.
+
+Look and feel:
+- The project's shadcn **amber** theme is kept (amber primary, ring and pale-amber accent; the logo square, selected segmented items and checked boxes use it too). The design review had proposed a neutral near-black primary; that was a misreading of "use the shadcn colour scheme" and was reverted. Known trade-off: white text on the amber primary is roughly 3:1, below the 4.5:1 target for small text — dark text on the amber buttons would fix it if that ever matters. The squared "radix-lyra" style is kept.
+- Interface text is sans (Geist) at `text-sm`; mono is only for cell values and column names. All sizes are Tailwind rem sizes, so they follow the browser's font-size setting.
+- New UI primitives: `dropdown-menu.tsx`, `popover.tsx` (Radix, styled like the existing ones). `ColumnControls.tsx` and `ProfilePicker.tsx` are gone.
+
+Tests: the e2e helpers (`e2e/helpers.ts`) were rewritten around the new controls (header menu, Replace…, profile menu), and `e2e/workspace.spec.ts` covers the empty state, header menu, Columns popover (including drag-and-drop), profile management and export scope. Unit tests cover the new store actions.
+
+Left out on purpose: shift-click range selection of *columns*, multiple saved views per Profile, Kibana-style filter by clicking a cell, the opt-in "trim all cells" option, value badges (a column of severities could get colour later), a delete-profile action, fixing delimiter auto-detection for padded data, and table virtualization. The Columns popover lists every column in table order, Derived Fields tagged "from …". Grouping them indented under their source (tried, then reverted) is deferred until the column-reordering model is reworked.
 
 ### Phase N — Playwright e2e (golden path)
-Partly covered early by Phase F2's specs (upload/paste → wizard → table, force as date/JSON/unescape, "detected" hints, CSV export of "all"). Still to write here: hide/re-show columns, search Highlight/Filter, row multi-select + hide, CSV export for the other two scopes, and profile persistence — plus a final end-to-end spec tying the golden path together.
+Mostly covered by the specs written along the way: Phase F2's (upload/paste → wizard → table, date/JSON/unescape, "detected" hints, CSV export), Phase K's `profile-editing.spec.ts`, and Phase M's `workspace.spec.ts` (empty state, header menu, Columns popover, profile menu, export scope). Still to write here: search Highlight/Filter, CSV export content for the other two scopes, importing/exporting profile files, and a final end-to-end spec tying the golden path together. The UI has now been reshaped, so this is the right time.
 `e2e/`:
 - `golden-path.spec.ts`: paste a small multi-line sample → wizard (delimiter auto-detect, confirm toggles) → save Profile → table renders expected columns/rows → hide a Field → re-show it (assert underlying data unaffected) → force a column as date → verify Derived Field columns appear and a bad value shows Parse Error → search + toggle Highlight/Filter → multi-select rows and hide → export CSV with each of the 3 scopes and assert downloaded content.
 - `profile-persistence.spec.ts`: save Profile, reload, confirm it's listed; export to JSON, clear localStorage, import back, confirm identical behavior.

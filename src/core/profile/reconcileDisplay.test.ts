@@ -63,6 +63,37 @@ describe("reconcileDisplay", () => {
     expect(result.derivedFieldSelections).toEqual([]);
   });
 
+  it("keeps the saved column order, hidden columns included, so a hidden column keeps its place", () => {
+    const result = reconcileDisplay(
+      display({ fieldOrder: ["c", "a", "b"], visibleFieldKeys: ["c", "b"] }),
+      ["a", "b", "c"],
+    );
+    expect(result.fieldOrder).toEqual(["c", "a", "b"]);
+    expect(result.visibleFieldKeys).toEqual(["c", "b"]);
+  });
+
+  it("puts the shown columns in the saved order even if visibleFieldKeys disagrees with it", () => {
+    const result = reconcileDisplay(
+      display({ fieldOrder: ["a", "b", "c"], visibleFieldKeys: ["c", "a"] }),
+      ["a", "b", "c"],
+    );
+    expect(result.visibleFieldKeys).toEqual(["a", "c"]);
+  });
+
+  it("appends columns the saved order has never seen, and drops ones the Dataset doesn't have", () => {
+    const result = reconcileDisplay(
+      display({ fieldOrder: ["b", "ghost", "a"], visibleFieldKeys: ["a"] }),
+      ["a", "b", "c"],
+    );
+    expect(result.fieldOrder).toEqual(["b", "a", "c"]);
+    expect(result.visibleFieldKeys).toEqual(["a"]);
+  });
+
+  it("for a Profile saved without an order, starts it with the shown columns and then the rest", () => {
+    const result = reconcileDisplay(display({ visibleFieldKeys: ["c", "a"] }), ["a", "b", "c"]);
+    expect(result.fieldOrder).toEqual(["c", "a", "b"]);
+  });
+
   it("carries labels and search state over untouched", () => {
     const result = reconcileDisplay(
       display({ fieldLabels: { a: "Alpha" }, searchState: { term: "x", mode: "highlight" } }),

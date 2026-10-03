@@ -55,12 +55,13 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
+  /* shadcn "amber" theme: amber primary and ring, pale-amber accent, neutral greys elsewhere. */
   --primary: oklch(0.666 0.179 58.318);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.5 0 0);
   --accent: oklch(0.962 0.059 95.617);
   --accent-foreground: oklch(0.473 0.137 46.201);
   --destructive: oklch(0.577 0.245 27.325);
@@ -124,7 +125,8 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Interface text is sans; the data itself (cells, column names) opts into mono with `font-mono`. */
   html {
-    @apply font-mono;
+    @apply font-sans;
   }
 }

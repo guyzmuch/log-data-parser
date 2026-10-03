@@ -230,14 +230,14 @@ describe("display mutators", () => {
     state().toggleFieldVisibility("payload");
     expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "when"]);
     state().toggleFieldVisibility("payload");
-    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "when", "payload"]);
-
-    state().moveFieldUp("payload");
     expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "payload", "when"]);
+
+    state().moveFieldUp("when");
+    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "when", "payload"]);
     state().moveFieldDown("id");
-    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["payload", "id", "when"]);
-    state().moveFieldUp("payload"); // already first: no-op
-    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["payload", "id", "when"]);
+    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["when", "id", "payload"]);
+    state().moveFieldUp("when"); // already first: no-op
+    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["when", "id", "payload"]);
 
     state().renameField("id", "Identifier");
     expect(state().activeProfile!.display.fieldLabels).toEqual({ id: "Identifier" });
@@ -253,5 +253,193 @@ describe("display mutators", () => {
     state().toggleFieldVisibility("id");
     state().renameField("id", "x");
     expect(state().activeProfile).toBeNull();
+  });
+});
+
+describe("column order and visibility (columns popover)", () => {
+  const visible = () => state().activeProfile!.display.visibleFieldKeys;
+  const order = () => state().activeProfile!.display.fieldOrder;
+
+  beforeEach(() => {
+    load();
+  });
+
+  it("a hidden column keeps its place and comes back where it was", () => {
+    state().toggleFieldVisibility("payload");
+    expect(visible()).toEqual(["id", "when"]);
+    expect(order()).toEqual(["id", "payload", "when"]);
+
+    state().toggleFieldVisibility("payload");
+    expect(visible()).toEqual(["id", "payload", "when"]);
+  });
+
+  it("a hidden first or last column also comes back in place", () => {
+    state().toggleFieldVisibility("id");
+    state().toggleFieldVisibility("when");
+    expect(visible()).toEqual(["payload"]);
+
+    state().toggleFieldVisibility("when");
+    state().toggleFieldVisibility("id");
+    expect(visible()).toEqual(["id", "payload", "when"]);
+  });
+
+  it("moves a column before another, or to the end, shown or hidden", () => {
+    state().moveFieldBefore("when", "id");
+    expect(visible()).toEqual(["when", "id", "payload"]);
+
+    state().moveFieldBefore("when", null);
+    expect(visible()).toEqual(["id", "payload", "when"]);
+
+    state().toggleFieldVisibility("payload");
+    state().moveFieldBefore("payload", "id"); // moving a hidden column changes where it will reappear
+    expect(visible()).toEqual(["id", "when"]);
+    state().toggleFieldVisibility("payload");
+    expect(visible()).toEqual(["payload", "id", "when"]);
+  });
+
+  it("ignores moves onto itself, or involving a key that isn't a column", () => {
+    state().moveFieldBefore("id", "id");
+    state().moveFieldBefore("id", "ghost");
+    state().moveFieldBefore("ghost", "id");
+    expect(order()).toEqual(["id", "payload", "when"]);
+  });
+
+  it("move left/right swaps with the neighbouring shown column, skipping hidden ones", () => {
+    state().toggleFieldVisibility("payload");
+    state().moveFieldDown("id"); // neighbour is "when", the hidden "payload" in between doesn't count
+    expect(visible()).toEqual(["when", "id"]);
+
+    state().moveFieldUp("id");
+    expect(visible()).toEqual(["id", "when"]);
+
+    state().moveFieldUp("id"); // already first
+    state().moveFieldDown("when"); // already last
+    expect(visible()).toEqual(["id", "when"]);
+  });
+
+  it("new Derived Fields go at the end of the order and are shown", () => {
+    state().toggleFieldVisibility("payload");
+    state().addDefaultDateDerivedFields("when");
+    expect(order()).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)"]);
+    expect(visible()).toEqual(["id", "when", "when (ISO)", "when (local time)"]);
+  });
+
+  it("Show all shows every column, each in its place", () => {
+    state().addDefaultDateDerivedFields("when");
+    state().toggleFieldVisibility("id");
+    state().toggleFieldVisibility("when (ISO)");
+    state().moveFieldBefore("when", "payload");
+    expect(visible()).toEqual(["when", "payload", "when (local time)"]);
+
+    state().showAllFields();
+    expect(visible()).toEqual(["id", "when", "payload", "when (ISO)", "when (local time)"]);
+  });
+
+  it("Hide all empties the visible list but keeps the order, without touching parsed Records", () => {
+    state().moveFieldBefore("when", "id");
+    const before = state().records;
+    state().hideAllFields();
+    expect(visible()).toEqual([]);
+    expect(order()).toEqual(["when", "id", "payload"]);
+    expect(state().records).toBe(before);
+
+    state().showAllFields();
+    expect(visible()).toEqual(["when", "id", "payload"]);
+  });
+
+  it("Reset order puts the columns back in natural order: base first, then derived as added", () => {
+    state().addDefaultDateDerivedFields("when");
+    state().addUnescapeDerivedField("payload");
+    state().toggleFieldVisibility("id");
+    state().moveFieldBefore("when (local time)", "payload");
+    state().moveFieldBefore("payload (unescaped)", "payload");
+
+    state().resetFieldOrder();
+    expect(order()).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)", "payload (unescaped)"]);
+    expect(visible()).toEqual(["payload", "when", "when (ISO)", "when (local time)", "payload (unescaped)"]);
+  });
+
+  it("a Profile saved before the order existed gets one when applied: shown columns first, then the rest", () => {
+    const legacy = makeProfile();
+    delete legacy.display.fieldOrder;
+    legacy.display.visibleFieldKeys = ["when", "id"];
+    load(RAW, legacy);
+
+    expect(order()).toEqual(["when", "id", "payload"]);
+    expect(visible()).toEqual(["when", "id"]);
+    state().toggleFieldVisibility("payload");
+    expect(visible()).toEqual(["when", "id", "payload"]);
+  });
+});
+
+describe("dataset lifecycle and the wizard", () => {
+  it("remembers where a dataset came from", () => {
+    state().loadDataset(RAW, "events.log");
+    expect(state().dataset).toEqual({ rawText: RAW, name: "events.log" });
+  });
+
+  it("replacing keeps everything on screen until a new dataset really loads", () => {
+    const profile = load();
+    state().addDefaultDateDerivedFields("when");
+    state().selectAllVisible([0, 1]);
+    const before = {
+      dataset: state().dataset,
+      records: state().records,
+      activeProfile: state().activeProfile,
+      selected: state().selectedRecordIndexes,
+    };
+
+    state().startReplacing();
+    expect(state().replacing).toBe(true);
+    expect(state().dataset).toBe(before.dataset);
+    expect(state().records).toBe(before.records);
+    expect(state().activeProfile).toBe(before.activeProfile);
+
+    state().cancelReplacing();
+    expect(state().replacing).toBe(false);
+    expect(state().dataset).toBe(before.dataset);
+    expect(state().records).toBe(before.records);
+    expect(state().activeProfile).toBe(before.activeProfile);
+    expect(state().selectedRecordIndexes).toBe(before.selected);
+    expect(state().activeProfile!.id).toBe(profile.id);
+  });
+
+  it("loading a dataset while replacing swaps it in and leaves the replacing state", () => {
+    load();
+    state().startReplacing();
+    state().loadDataset("a|b\n1|2", "other.log");
+
+    expect(state().replacing).toBe(false);
+    expect(state().dataset).toEqual({ rawText: "a|b\n1|2", name: "other.log" });
+    expect(state().activeProfile).toBeNull();
+    expect(state().records).toEqual([]);
+    expect(state().wizardTarget).toBeNull();
+  });
+
+  it("starting to replace closes an open wizard", () => {
+    load();
+    state().openWizard("new");
+    state().startReplacing();
+    expect(state().wizardTarget).toBeNull();
+  });
+
+  it("opens and closes the wizard on a new or an existing profile", () => {
+    const profile = load();
+    state().openWizard("new");
+    expect(state().wizardTarget).toBe("new");
+    state().openWizard(profile);
+    expect(state().wizardTarget).toBe(profile);
+    state().closeWizard();
+    expect(state().wizardTarget).toBeNull();
+  });
+
+  it("clearSelection deselects every row but keeps hidden rows hidden", () => {
+    load();
+    state().selectAllVisible([0, 1, 2]);
+    state().hideSelectedRecords([0]);
+    state().clearSelection();
+
+    expect(state().selectedRecordIndexes.size).toBe(0);
+    expect([...state().hiddenRecordIndexes]).toEqual([0]);
   });
 });

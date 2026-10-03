@@ -18,6 +18,7 @@ describe("createDefaultDisplayConfig", () => {
   it("makes every field visible, in the given order", () => {
     expect(createDefaultDisplayConfig(["id", "name", "active"])).toEqual({
       visibleFieldKeys: ["id", "name", "active"],
+      fieldOrder: ["id", "name", "active"],
       fieldLabels: {},
       derivedFieldSelections: [],
     });

@@ -56,3 +56,10 @@ when opening a new profile creation wizard the form should be cleared
 All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
 when parsing a column in a certain way, add the new column after the "parent" column, and unmark the parent column to hide it (because by default, we would only want the parsed data, not the raw one)
 for the autodetected parsing of data, add some specific styling to the button that will do this (like a star or something) so it stand out
+we sohuld be able to resize the column of the array, and data will have elipse at the end
+You could also display entry in 2 lines
+Can change the font on some of the column (to have some info bigger
+Posibility to add comment on each data line
+You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
+we can sort the table by column (asc/desc)
+Could we have something simple that learn from previous file name, and if the name of 3 different file are similare, the we proposed the parsing profile that was used most for this type of file name (like format, extension, first line, etc) when i say proposed, I just mean a suggestion of the parsing profile

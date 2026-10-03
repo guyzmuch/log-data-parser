@@ -5,6 +5,7 @@ import type { ParsingConfig } from "@/core/parsing/types";
 export function createDefaultDisplayConfig(fieldNames: string[]): DisplayConfig {
   return {
     visibleFieldKeys: [...fieldNames],
+    fieldOrder: [...fieldNames],
     fieldLabels: {},
     derivedFieldSelections: [],
   };

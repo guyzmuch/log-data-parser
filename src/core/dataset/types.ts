@@ -1,6 +1,8 @@
 /** The whole blob of content a user has uploaded or pasted in one go. */
 export interface Dataset {
   rawText: string;
+  /** Where it came from: a file name, a sample's name, or "Pasted text". Display only. */
+  name?: string;
 }
 
 /** One line within a Dataset, before any parsing. */

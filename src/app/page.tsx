@@ -1,20 +1,13 @@
-import { ColumnControls } from "@/components/data-table/ColumnControls";
-import { DataTable } from "@/components/data-table/DataTable";
-import { DatasetInput } from "@/components/dataset-input/DatasetInput";
-import { ExportMenu } from "@/components/export-menu/ExportMenu";
-import { ProfilePicker } from "@/components/profile-wizard/ProfilePicker";
-import { SearchBar } from "@/components/search-bar/SearchBar";
+import { TopBar } from "@/components/app-shell/TopBar";
+import { Workspace } from "@/components/app-shell/Workspace";
+import { ProfileWizardHost } from "@/components/profile-wizard/ProfileWizardHost";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">log-data-parser</h1>
-      <DatasetInput />
-      <ProfilePicker />
-      <ColumnControls />
-      <SearchBar />
-      <ExportMenu />
-      <DataTable />
+    <main className="flex h-full min-h-0 flex-col">
+      <TopBar />
+      <Workspace />
+      <ProfileWizardHost />
     </main>
   );
 }

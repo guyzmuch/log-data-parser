@@ -1,10 +1,13 @@
 "use client";
 
 import type { MouseEvent, ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { ColumnHeader } from "@/components/data-table/ColumnHeader";
+import { useDetectedPatterns } from "@/components/data-table/useDetectedPatterns";
+import { useVisibleRecords } from "@/components/data-table/useVisibleRecords";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { matchesSearch } from "@/core/search/matchesSearch";
+import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
 
 /** Wraps every case-insensitive occurrence of `term` in `value` with a <mark>. */
@@ -21,7 +24,7 @@ function highlightMatches(value: string, term: string): ReactNode {
   while (index !== -1) {
     if (index > cursor) parts.push(value.slice(cursor, index));
     parts.push(
-      <mark key={index} className="bg-primary/30 text-inherit">
+      <mark key={index} className="bg-yellow-200 text-inherit dark:bg-yellow-500/40">
         {value.slice(index, index + needle.length)}
       </mark>,
     );
@@ -32,35 +35,42 @@ function highlightMatches(value: string, term: string): ReactNode {
   return parts;
 }
 
+const DERIVED_HEAD = "bg-[color-mix(in_oklch,var(--muted),var(--foreground)_5%)]";
+const DERIVED_CELL = "bg-muted/40";
+
 export function DataTable() {
   const records = useAppStore((s) => s.records);
   const activeProfile = useAppStore((s) => s.activeProfile);
-  const hiddenRecordIndexes = useAppStore((s) => s.hiddenRecordIndexes);
   const selectedRecordIndexes = useAppStore((s) => s.selectedRecordIndexes);
   const selectRecord = useAppStore((s) => s.selectRecord);
   const selectAllVisible = useAppStore((s) => s.selectAllVisible);
   const deselectAllVisible = useAppStore((s) => s.deselectAllVisible);
-  const hideSelectedRecords = useAppStore((s) => s.hideSelectedRecords);
-  const unhideAllRecords = useAppStore((s) => s.unhideAllRecords);
+  const detectedByField = useDetectedPatterns();
+  const { shownRecords, visibleRecords, visibleIndexesInOrder, ordinalByIndex, visibleSelectedCount } =
+    useVisibleRecords();
 
   if (!activeProfile || records.length === 0) {
-    return <p className="text-xs text-muted-foreground">No data parsed yet.</p>;
+    return <p className="px-5 text-sm text-muted-foreground">No data parsed yet.</p>;
   }
 
-  const { visibleFieldKeys, fieldLabels, searchState } = activeProfile.display;
+  const { visibleFieldKeys, searchState, derivedFieldSelections } = activeProfile.display;
   const term = searchState?.term ?? "";
   const mode = searchState?.mode ?? "highlight";
+  const derivedKeys = new Set(derivedFieldSelections.map(derivedFieldKey));
 
-  const shownRecords = records.filter((record) => !hiddenRecordIndexes.has(record.index));
-  const visibleRecords =
-    mode === "filter" ? shownRecords.filter((record) => matchesSearch(record, visibleFieldKeys, term)) : shownRecords;
-  const visibleIndexesInOrder = visibleRecords.map((record) => record.index);
+  if (visibleFieldKeys.length === 0) {
+    return <p className="px-5 text-sm text-muted-foreground">No columns are shown. Use “Columns” to pick some.</p>;
+  }
+  if (visibleRecords.length === 0) {
+    return (
+      <p className="px-5 text-sm text-muted-foreground">
+        {shownRecords.length === 0 ? "All records are hidden." : "No records match your search."}
+      </p>
+    );
+  }
 
-  const allVisibleSelected =
-    visibleIndexesInOrder.length > 0 && visibleIndexesInOrder.every((index) => selectedRecordIndexes.has(index));
-  const visibleSelectedCount = visibleIndexesInOrder.filter((index) => selectedRecordIndexes.has(index)).length;
-  const someVisibleSelected = visibleSelectedCount > 0;
-  const headerCheckedState = allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false;
+  const allVisibleSelected = visibleIndexesInOrder.length > 0 && visibleSelectedCount === visibleIndexesInOrder.length;
+  const headerCheckedState = allVisibleSelected ? true : visibleSelectedCount > 0 ? "indeterminate" : false;
 
   function handleRowClick(event: MouseEvent, index: number) {
     selectRecord(index, { ctrlOrMeta: event.ctrlKey || event.metaKey, shift: event.shiftKey }, visibleIndexesInOrder);
@@ -79,30 +89,15 @@ export function DataTable() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={visibleSelectedCount === 0}
-          onClick={() => hideSelectedRecords(visibleIndexesInOrder)}
-        >
-          Hide selected ({visibleSelectedCount})
-        </Button>
-        <Button variant="outline" size="sm" disabled={hiddenRecordIndexes.size === 0} onClick={unhideAllRecords}>
-          Unhide all{hiddenRecordIndexes.size > 0 ? ` (${hiddenRecordIndexes.size})` : ""}
-        </Button>
-      </div>
-
-      {visibleRecords.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {shownRecords.length === 0 ? "All records are hidden." : "No records match your search."}
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8">
+    // The box is the table's only scroller (the shadcn Table wraps itself in an overflow-x-auto
+    // container, which would put the horizontal scrollbar at the bottom of the full-height table),
+    // so the header can stick to its top edge and both scrollbars sit on its visible edges.
+    <div className="mx-5 mb-5 min-h-0 flex-1 overflow-auto border border-border [&_[data-slot=table-container]]:overflow-visible">
+      <Table className="text-[0.8125rem]">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="sticky top-0 z-10 w-24 border-b bg-muted">
+              <div className="flex items-center gap-2 pl-1">
                 <Checkbox
                   checked={headerCheckedState}
                   onCheckedChange={() =>
@@ -110,46 +105,65 @@ export function DataTable() {
                   }
                   aria-label="Select all visible rows"
                 />
-              </TableHead>
-              {visibleFieldKeys.map((key) => (
-                <TableHead key={key}>{fieldLabels[key] ?? key}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visibleRecords.map((record) => (
-              <TableRow
-                key={record.index}
-                data-state={selectedRecordIndexes.has(record.index) ? "selected" : undefined}
-                onClick={(event) => handleRowClick(event, record.index)}
-                className="cursor-pointer"
+                <span className="text-xs font-medium text-muted-foreground">#</span>
+              </div>
+            </TableHead>
+            {visibleFieldKeys.map((key, position) => (
+              <TableHead
+                key={key}
+                className={cn("sticky top-0 z-10 border-b bg-muted px-3", derivedKeys.has(key) && DERIVED_HEAD)}
               >
-                <TableCell>
+                <ColumnHeader
+                  fieldKey={key}
+                  detected={detectedByField[key] ?? []}
+                  isFirst={position === 0}
+                  isLast={position === visibleFieldKeys.length - 1}
+                />
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visibleRecords.map((record) => (
+            <TableRow
+              key={record.index}
+              data-state={selectedRecordIndexes.has(record.index) ? "selected" : undefined}
+              onClick={(event) => handleRowClick(event, record.index)}
+              className="cursor-pointer"
+            >
+              <TableCell>
+                <div className="flex items-center gap-2 pl-1">
                   <Checkbox
                     checked={selectedRecordIndexes.has(record.index)}
                     onClick={(event) => handleRowCheckboxClick(event, record.index)}
                     aria-label={`Select row ${record.index}`}
                   />
-                </TableCell>
-                {visibleFieldKeys.map((key) => {
-                  const field = record.fields.find((f) => f.key === key);
-                  if (field?.parseError) {
-                    return (
-                      <TableCell key={key} className="text-destructive">
-                        Invalid parse
-                      </TableCell>
-                    );
-                  }
-                  const value = field?.value ?? "";
+                  <span className="min-w-6 text-right text-xs text-muted-foreground tabular-nums">
+                    {ordinalByIndex.get(record.index)}
+                  </span>
+                </div>
+              </TableCell>
+              {visibleFieldKeys.map((key) => {
+                const field = record.fields.find((f) => f.key === key);
+                const cellClass = cn("px-3 font-mono", derivedKeys.has(key) && DERIVED_CELL);
+                if (field?.parseError) {
                   return (
-                    <TableCell key={key}>{mode === "highlight" ? highlightMatches(value, term) : value}</TableCell>
+                    <TableCell key={key} className={cn(cellClass, "text-destructive")}>
+                      Invalid parse
+                    </TableCell>
                   );
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+                }
+                const value = field?.value ?? "";
+                return (
+                  <TableCell key={key} className={cellClass}>
+                    {mode === "highlight" ? highlightMatches(value, term) : value}
+                  </TableCell>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

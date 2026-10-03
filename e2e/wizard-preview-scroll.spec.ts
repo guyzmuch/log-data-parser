@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { openWizard, pasteDataset, setCheckbox } from "./helpers";
 
-// A wide and tall dataset, so the wizard's preview box overflows in both directions.
+// A wide dataset, so the wizard's preview box overflows horizontally. (The wizard only previews a
+// sample of about nine lines, so it never overflows vertically at this size.)
 const COLUMN_COUNT = 14;
 const header = Array.from({ length: COLUMN_COUNT }, (_, i) => `column_number_${i + 1}`).join(",");
 const rows = Array.from({ length: 30 }, (_, r) =>
@@ -20,14 +21,12 @@ test("wizard preview: the horizontal scrollbar belongs to the visible preview bo
   const tableContainer = page.getByRole("dialog").locator('[data-slot="table-container"]');
   const previewBox = tableContainer.locator("xpath=..");
 
-  // The data overflows the box both ways...
+  // The data overflows the box sideways...
   const box = await previewBox.evaluate((el) => ({
     overflowsX: el.scrollWidth > el.clientWidth,
-    overflowsY: el.scrollHeight > el.clientHeight,
     overflowX: getComputedStyle(el).overflowX,
   }));
   expect(box.overflowsX).toBe(true);
-  expect(box.overflowsY).toBe(true);
   expect(box.overflowX).toBe("auto");
 
   // ...so the box itself must be the only horizontal scroller. If the table's own wrapper scrolls

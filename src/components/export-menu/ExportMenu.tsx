@@ -1,8 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { CaretDownIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { buildExportRows } from "@/core/export/buildExportRows";
 import { toCSVBlob } from "@/core/export/toCSVBlob";
 import type { ExportScope } from "@/core/export/types";
@@ -34,25 +42,31 @@ export function ExportMenu() {
   }
 
   return (
-    <div className="flex items-center gap-2 border border-input p-2">
-      <Select value={scope} onValueChange={(value) => setScope(value as ExportScope)}>
-        <SelectTrigger className="w-44">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {(Object.keys(SCOPE_LABELS) as ExportScope[]).map((candidate) => (
-            <SelectItem key={candidate} value={candidate}>
-              {SCOPE_LABELS[candidate]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button size="sm" onClick={handleExport} disabled={rows.length === 0}>
-        Export CSV ({rows.length} row{rows.length === 1 ? "" : "s"})
+    <div className="flex items-center">
+      <Button onClick={handleExport} disabled={rows.length === 0} className="h-8">
+        <DownloadSimpleIcon />
+        Export CSV · {rows.length} {rows.length === 1 ? "row" : "rows"}
       </Button>
-      {scope === "matching-filter" && !filterActive && (
-        <p className="text-xs text-muted-foreground">No active filter — exporting all records.</p>
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon" aria-label="Export scope" className="-ml-px">
+            <CaretDownIcon />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Rows to export</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={scope} onValueChange={(value) => setScope(value as ExportScope)}>
+            {(Object.keys(SCOPE_LABELS) as ExportScope[]).map((candidate) => (
+              <DropdownMenuRadioItem key={candidate} value={candidate}>
+                {SCOPE_LABELS[candidate]}
+                {candidate === "matching-filter" && !filterActive && (
+                  <span className="ml-auto text-xs text-muted-foreground">no filter: all</span>
+                )}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

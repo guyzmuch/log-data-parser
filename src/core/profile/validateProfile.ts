@@ -49,6 +49,7 @@ function normalizeDisplay(value: unknown): DisplayConfig | undefined {
 
   return {
     visibleFieldKeys: Array.isArray(v.visibleFieldKeys) ? v.visibleFieldKeys.filter((k) => typeof k === "string") : [],
+    ...(Array.isArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder.filter((k) => typeof k === "string") } : {}),
     fieldLabels,
     // Unknown/legacy kinds are dropped rather than rejecting the whole Profile.
     derivedFieldSelections: Array.isArray(v.derivedFieldSelections) ? v.derivedFieldSelections.filter(isDerivedFieldSpec) : [],

@@ -36,8 +36,8 @@ test.describe("CSV export of a padded, quoted pipe file", () => {
 
   test("derived columns are exported with clean names and values", async ({ page }) => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
-    await clickColumnAction(page, 2, "Force as JSON");
-    await clickColumnAction(page, 0, "Force as date");
+    await clickColumnAction(page, 2, "Extract JSON keys");
+    await clickColumnAction(page, 0, "Parse as date");
 
     const lines = await exportCsvLines(page);
     const header = lines[0].split(",");
@@ -48,9 +48,9 @@ test.describe("CSV export of a padded, quoted pipe file", () => {
     expect.soft(lines[1]).toContain(',alice,login,3,2026-01-15T12:30:00.000Z,"Jan 15, 2026, 12:30:00');
   });
 
-  test("the stringified file exports readable data after Strip escapes", async ({ page }) => {
+  test("the stringified file exports readable data after Strip escape characters", async ({ page }) => {
     await loadWithProfile(page, "json-cell-stringified-pipe.log", CHOICES);
-    await clickColumnAction(page, 2, "Strip escapes");
+    await clickColumnAction(page, 2, "Strip escape characters");
 
     const lines = await exportCsvLines(page);
     expect.soft(lines[0]).toBe("timestamp,host,payload,level,payload (unescaped)");

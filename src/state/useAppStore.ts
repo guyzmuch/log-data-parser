@@ -10,6 +10,7 @@ import { listHiddenProfileIds, setHiddenProfileIds } from "@/core/persistence/hi
 import { listProfiles, saveProfile, saveProfiles } from "@/core/persistence/localStorageProfileStore";
 import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
 import { createProfile } from "@/core/profile/createProfile";
+import { currentFieldOrder, moveBefore, naturalFieldOrder, visibleInOrder } from "@/core/profile/fieldOrder";
 import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
 import type { DisplayConfig, Profile, SearchState } from "@/core/profile/types";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
@@ -33,8 +34,24 @@ interface AppState {
   savedProfiles: Profile[];
   /** Ids of Profiles (built-in or user) hidden from the picker's normal view — see Hidden Profile in CONTEXT.md. */
   hiddenProfileIds: Set<string>;
+  /** What the Profile wizard is open on: "new" for a fresh Profile, a Profile to edit its parsing, or null when closed. */
+  wizardTarget: Profile | "new" | null;
+  /**
+   * True while the user is picking a replacement for the current Dataset. The current Dataset, its
+   * profile and everything on screen are kept untouched until a new one actually loads, so
+   * cancelReplacing() gets back exactly where they were.
+   */
+  replacing: boolean;
 
-  loadDataset: (rawText: string) => void;
+  openWizard: (target: Profile | "new") => void;
+  closeWizard: () => void;
+
+  /** Loads a new Dataset (replacing any current one) and resets everything session-scoped. `name` is shown in the top bar. */
+  loadDataset: (rawText: string, name?: string) => void;
+  /** Shows the "open a file" screen without discarding the current Dataset. */
+  startReplacing: () => void;
+  /** Leaves the "open a file" screen and returns to the current Dataset as it was. */
+  cancelReplacing: () => void;
   /**
    * Re-parses the current Dataset with this Profile and makes it active. The Profile's display
    * config is reconciled with the Fields this Dataset actually has (stale keys/specs dropped).
@@ -55,10 +72,20 @@ interface AppState {
   /** Reverses hideProfile. */
   unhideProfile: (id: string) => void;
 
-  setVisibleFieldKeys: (keys: string[]) => void;
+  /** Shows or hides a Field. Its place in the column order is kept, so showing it again puts it back where it was. */
   toggleFieldVisibility: (key: string) => void;
+  /** Swaps a shown Field with the shown Field before it (hidden Fields in between don't count). */
   moveFieldUp: (key: string) => void;
+  /** Swaps a shown Field with the shown Field after it. */
   moveFieldDown: (key: string) => void;
+  /** Moves a Field (shown or hidden) to sit just before `beforeKey` in the column order, or to the end when null. Used by drag-and-drop. */
+  moveFieldBefore: (key: string, beforeKey: string | null) => void;
+  /** Shows every Field, each in its place in the column order. */
+  showAllFields: () => void;
+  /** Hides every Field (the column order is kept). */
+  hideAllFields: () => void;
+  /** Puts the column order back to natural: base columns as parsed, then Derived Fields as they were added. */
+  resetFieldOrder: () => void;
   renameField: (key: string, label: string) => void;
   setSearchState: (search: SearchState) => void;
 
@@ -81,6 +108,8 @@ interface AppState {
   hideSelectedRecords: (visibleIndexesInOrder: number[]) => void;
   /** Clears hiddenRecordIndexes, making every Record visible again. */
   unhideAllRecords: () => void;
+  /** Deselects every Record. */
+  clearSelection: () => void;
 
   /** Adds the default ISO/local-time pair for a Field. Specs it already has are skipped. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
@@ -120,6 +149,11 @@ export const useAppStore = create<AppState>((set, get) => {
     if (newSpecs.length === 0) return;
 
     const derivedFieldSelections = [...activeProfile.display.derivedFieldSelections, ...newSpecs];
+    const newKeys = newSpecs.map(derivedFieldKey);
+    // New Derived Fields go at the end of the column order and default to visible, same as a
+    // freshly-created Profile's base fields.
+    const fieldOrder = [...currentFieldOrder(activeProfile.display, baseFieldNames), ...newKeys];
+    const shown = new Set([...activeProfile.display.visibleFieldKeys, ...newKeys]);
 
     set({
       records: applyDerivedFields(records, derivedFieldSelections),
@@ -128,8 +162,8 @@ export const useAppStore = create<AppState>((set, get) => {
         display: {
           ...activeProfile.display,
           derivedFieldSelections,
-          // New Derived Fields default to visible, same as a freshly-created Profile's base fields.
-          visibleFieldKeys: [...activeProfile.display.visibleFieldKeys, ...newSpecs.map(derivedFieldKey)],
+          fieldOrder,
+          visibleFieldKeys: visibleInOrder(fieldOrder, shown),
         },
       },
     });
@@ -145,10 +179,19 @@ export const useAppStore = create<AppState>((set, get) => {
     selectionAnchorIndex: null,
     savedProfiles: [],
     hiddenProfileIds: new Set(),
+    wizardTarget: null,
+    replacing: false,
 
-    loadDataset: (rawText) => {
+    openWizard: (target) => set({ wizardTarget: target }),
+    closeWizard: () => set({ wizardTarget: null }),
+    startReplacing: () => set({ replacing: true, wizardTarget: null }),
+    cancelReplacing: () => set({ replacing: false }),
+
+    loadDataset: (rawText, name) => {
       set({
-        dataset: { rawText },
+        replacing: false,
+        wizardTarget: null,
+        dataset: { rawText, name },
         activeProfile: null,
         baseFieldNames: [],
         records: [],
@@ -217,36 +260,60 @@ export const useAppStore = create<AppState>((set, get) => {
       set({ hiddenProfileIds: next });
     },
 
-    setVisibleFieldKeys: (keys) => {
-      updateDisplay((display) => ({ ...display, visibleFieldKeys: keys }));
-    },
-
     toggleFieldVisibility: (key) => {
-      updateDisplay((display) => ({
-        ...display,
-        visibleFieldKeys: display.visibleFieldKeys.includes(key)
-          ? display.visibleFieldKeys.filter((k) => k !== key)
-          : [...display.visibleFieldKeys, key],
-      }));
+      updateDisplay((display) => {
+        const fieldOrder = currentFieldOrder(display, get().baseFieldNames);
+        const shown = new Set(display.visibleFieldKeys);
+        if (!shown.delete(key)) shown.add(key);
+        return { ...display, fieldOrder, visibleFieldKeys: visibleInOrder(fieldOrder, shown) };
+      });
     },
 
     moveFieldUp: (key) => {
       updateDisplay((display) => {
-        const keys = [...display.visibleFieldKeys];
-        const i = keys.indexOf(key);
+        const i = display.visibleFieldKeys.indexOf(key);
         if (i <= 0) return display;
-        [keys[i - 1], keys[i]] = [keys[i], keys[i - 1]];
-        return { ...display, visibleFieldKeys: keys };
+        const fieldOrder = moveBefore(currentFieldOrder(display, get().baseFieldNames), key, display.visibleFieldKeys[i - 1]);
+        return { ...display, fieldOrder, visibleFieldKeys: visibleInOrder(fieldOrder, new Set(display.visibleFieldKeys)) };
       });
     },
 
     moveFieldDown: (key) => {
       updateDisplay((display) => {
-        const keys = [...display.visibleFieldKeys];
-        const i = keys.indexOf(key);
-        if (i === -1 || i >= keys.length - 1) return display;
-        [keys[i + 1], keys[i]] = [keys[i], keys[i + 1]];
-        return { ...display, visibleFieldKeys: keys };
+        const i = display.visibleFieldKeys.indexOf(key);
+        if (i === -1 || i >= display.visibleFieldKeys.length - 1) return display;
+        // Moving down is the next shown column moving up past this one.
+        const fieldOrder = moveBefore(currentFieldOrder(display, get().baseFieldNames), display.visibleFieldKeys[i + 1], key);
+        return { ...display, fieldOrder, visibleFieldKeys: visibleInOrder(fieldOrder, new Set(display.visibleFieldKeys)) };
+      });
+    },
+
+    moveFieldBefore: (key, beforeKey) => {
+      updateDisplay((display) => {
+        const fieldOrder = moveBefore(currentFieldOrder(display, get().baseFieldNames), key, beforeKey);
+        return { ...display, fieldOrder, visibleFieldKeys: visibleInOrder(fieldOrder, new Set(display.visibleFieldKeys)) };
+      });
+    },
+
+    showAllFields: () => {
+      updateDisplay((display) => {
+        const fieldOrder = currentFieldOrder(display, get().baseFieldNames);
+        return { ...display, fieldOrder, visibleFieldKeys: [...fieldOrder] };
+      });
+    },
+
+    hideAllFields: () => {
+      updateDisplay((display) => ({
+        ...display,
+        fieldOrder: currentFieldOrder(display, get().baseFieldNames),
+        visibleFieldKeys: [],
+      }));
+    },
+
+    resetFieldOrder: () => {
+      updateDisplay((display) => {
+        const fieldOrder = naturalFieldOrder(get().baseFieldNames, display);
+        return { ...display, fieldOrder, visibleFieldKeys: visibleInOrder(fieldOrder, new Set(display.visibleFieldKeys)) };
       });
     },
 
@@ -296,6 +363,10 @@ export const useAppStore = create<AppState>((set, get) => {
 
     unhideAllRecords: () => {
       set({ hiddenRecordIndexes: new Set() });
+    },
+
+    clearSelection: () => {
+      set({ selectedRecordIndexes: new Set(), selectionAnchorIndex: null });
     },
 
     addDefaultDateDerivedFields: (sourceFieldKey) => {

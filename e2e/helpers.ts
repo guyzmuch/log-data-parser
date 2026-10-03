@@ -15,19 +15,43 @@ export interface WizardChoices {
 /** Whitespace-collapsed text: rendered HTML hides padding, and Intl may emit narrow no-break spaces. */
 export const norm = (text: string) => text.replace(/\s+/g, " ").trim();
 
+// ---------------------------------------------------------------------------
+// Loading a Dataset and a Profile
+// ---------------------------------------------------------------------------
+
+/** The empty state is where files and pasted text go in; from a loaded Dataset, "Replace…" leads back to it. */
+async function ensureEmptyState(page: Page) {
+  if ((await page.locator(FILE_INPUT).count()) === 0) {
+    await page.getByRole("button", { name: "Replace…" }).click();
+  }
+}
+
+async function waitForProfileChoice(page: Page) {
+  await expect(page.getByRole("heading", { name: "Choose how to split this data" })).toBeVisible();
+}
+
 export async function uploadSample(page: Page, fileName: string) {
+  await ensureEmptyState(page);
   await page.locator(FILE_INPUT).setInputFiles(path.join(SAMPLES_DIR, fileName));
-  await expect(page.getByRole("button", { name: /New profile/ })).toBeVisible();
+  await waitForProfileChoice(page);
 }
 
 export async function pasteDataset(page: Page, text: string) {
+  await ensureEmptyState(page);
   await page.locator("textarea").fill(text);
   await page.getByRole("button", { name: "Parse pasted data" }).click();
-  await expect(page.getByRole("button", { name: /New profile/ })).toBeVisible();
+  await waitForProfileChoice(page);
 }
 
+/** Opens the Profile wizard on a new profile, from the chooser if it's showing, else from the profile menu. */
 export async function openWizard(page: Page) {
-  await page.getByRole("button", { name: /New profile/ }).click();
+  const fromChooser = page.getByRole("button", { name: /^New profile/ });
+  if (await fromChooser.isVisible()) {
+    await fromChooser.click();
+  } else {
+    await page.getByRole("button", { name: /^Profile/ }).click();
+    await page.getByRole("menuitem", { name: /New profile/ }).click();
+  }
   await expect(page.getByRole("dialog")).toBeVisible();
 }
 
@@ -38,14 +62,13 @@ export async function setCheckbox(page: Page, name: string, checked: boolean) {
 }
 
 export async function selectDelimiter(page: Page, label: DelimiterLabel) {
-  await page.getByRole("dialog").getByRole("combobox").click();
-  await page.getByRole("option", { name: new RegExp(label) }).click();
+  await page.getByRole("dialog").getByRole("radio", { name: label, exact: true }).click();
 }
 
 export async function configureWizard(page: Page, choices: WizardChoices) {
   await selectDelimiter(page, choices.delimiter);
   await setCheckbox(page, "First row is a header", choices.header ?? false);
-  await setCheckbox(page, "Strip surrounding quotes", choices.stripQuotes ?? false);
+  await setCheckbox(page, "Trim cells & strip quotes", choices.stripQuotes ?? false);
 }
 
 export async function saveWizard(page: Page) {
@@ -71,15 +94,51 @@ export async function pasteWithProfile(page: Page, text: string, choices: Wizard
   await saveWizard(page);
 }
 
-export async function tableHeaders(table: Locator): Promise<string[]> {
-  return (await table.locator("thead th").allTextContents()).map(norm);
+/** Applies an existing profile by name: from the chooser when it's showing, else from the profile menu. */
+export async function chooseProfile(page: Page, name: string) {
+  const fromChooser = page.getByRole("button", { name, exact: true });
+  if (await fromChooser.isVisible()) {
+    await fromChooser.click();
+  } else {
+    await page.getByRole("button", { name: /^Profile/ }).click();
+    await page.getByRole("menuitemradio", { name, exact: true }).click();
+  }
 }
 
-/** Main data table: first header/cell is the row-select checkbox, so it's dropped. */
+// ---------------------------------------------------------------------------
+// Reading the tables
+// ---------------------------------------------------------------------------
+
+/** Wizard preview: first header/cell is the "#" column, so it's dropped. */
+export async function previewHeaders(page: Page): Promise<string[]> {
+  const headers = await page.getByRole("dialog").locator("table thead th").allTextContents();
+  return headers.map(norm).slice(1);
+}
+
+export async function previewRows(page: Page): Promise<string[][]> {
+  const rows = page.getByRole("dialog").locator("table tbody tr");
+  const count = await rows.count();
+  const result: string[][] = [];
+  for (let i = 0; i < count; i++) {
+    result.push((await rows.nth(i).locator("td").allTextContents()).map(norm).slice(1));
+  }
+  return result;
+}
+
+/** The i-th column header of the main table (0 = first data column, after the row-select/# cell). */
+export function headerCell(page: Page, index: number): Locator {
+  return page.locator("main thead th").nth(index + 1);
+}
+
+/** Main data table column names, read from each header's label (not its hints, caption or menu). */
 export async function mainHeaders(page: Page): Promise<string[]> {
-  return (await tableHeaders(page.locator("main table"))).slice(1);
+  const labels = await page.locator('main thead th [data-testid="column-label"]').evaluateAll((els) =>
+    els.map((el) => el.getAttribute("data-label") ?? ""),
+  );
+  return labels.map(norm);
 }
 
+/** Main data table: the first cell of each row is the row-select checkbox and "#", so it's dropped. */
 export async function mainRows(page: Page): Promise<string[][]> {
   const rows = page.locator("main table tbody tr");
   const count = await rows.count();
@@ -90,47 +149,59 @@ export async function mainRows(page: Page): Promise<string[][]> {
   return result;
 }
 
-export async function previewRows(page: Page): Promise<string[][]> {
-  const rows = page.getByRole("dialog").locator("table tbody tr");
-  const count = await rows.count();
-  const result: string[][] = [];
-  for (let i = 0; i < count; i++) {
-    result.push((await rows.nth(i).locator("td").allTextContents()).map(norm));
-  }
-  return result;
+/** Values of columns [from, from+count) for every row. */
+export function columnSlice(rows: string[][], from: number, count: number): string[][] {
+  return rows.map((row) => row.slice(from, from + count));
 }
 
-/** The i-th base column's block in the "Columns" panel (label input, action buttons, derived rows). */
-export function columnGroup(page: Page, index: number): Locator {
-  return page.getByText("Columns", { exact: true }).locator("xpath=..").locator("xpath=./div").nth(index);
-}
+// ---------------------------------------------------------------------------
+// Column headers: labels, hints, and the per-column menu
+// ---------------------------------------------------------------------------
 
-/** Column i's label as typed in the Columns panel (an <input>, so padding is NOT collapsed). */
+/** Column labels exactly as stored (the attribute keeps any padding that HTML rendering would collapse). */
 export async function expectColumnLabels(page: Page, labels: string[]) {
   for (const [i, label] of labels.entries()) {
-    await expect.soft(columnGroup(page, i).locator("input").first(), `Columns panel label #${i + 1}`).toHaveValue(label);
+    await expect
+      .soft(headerCell(page, i).getByTestId("column-label"), `column label #${i + 1}`)
+      .toHaveAttribute("data-label", label);
   }
 }
 
 /**
- * The "detected: ..." hint next to a column (labels as shown in ColumnControls:
- * "date", "JSON", "escaped chars", "whitespace padding"). An empty list means no hint is rendered at all.
+ * The detection chips on a column header ("date", "JSON", "escaped chars"), in order.
+ * An empty list means no chip is rendered at all.
  */
 export async function expectDetected(page: Page, columnIndex: number, labels: string[]) {
-  const hint = columnGroup(page, columnIndex).getByText(/^detected:/);
-  const name = `"detected" hint of column #${columnIndex + 1}`;
+  const hints = headerCell(page, columnIndex).getByTestId("detected-hint");
+  const name = `detected hints of column #${columnIndex + 1}`;
   if (labels.length === 0) {
-    await expect.soft(hint, name).toHaveCount(0);
+    await expect.soft(hints, name).toHaveCount(0);
   } else {
-    await expect.soft(hint, name).toHaveText(`detected: ${labels.join(", ")}`);
+    await expect.soft(hints, name).toHaveText(labels);
   }
 }
 
-export async function clickColumnAction(page: Page, columnIndex: number, action: string) {
-  await columnGroup(page, columnIndex).getByRole("button", { name: action, exact: true }).click();
+async function openColumnMenu(page: Page, columnIndex: number) {
+  await headerCell(page, columnIndex).getByRole("button", { name: /Column options/ }).click();
 }
 
-/** Values of columns [from, from+count) for every row. */
-export function columnSlice(rows: string[][], from: number, count: number): string[][] {
-  return rows.map((row) => row.slice(from, from + count));
+/** Clicks an item in a column's header menu: "Parse as date", "Extract JSON keys", "Strip escape characters", … */
+export async function clickColumnAction(page: Page, columnIndex: number, action: string) {
+  await openColumnMenu(page, columnIndex);
+  await page.getByRole("menuitem", { name: action }).click();
+}
+
+export async function renameColumn(page: Page, columnIndex: number, label: string) {
+  await clickColumnAction(page, columnIndex, "Rename column");
+  const input = headerCell(page, columnIndex).getByRole("textbox", { name: "Column name" });
+  await input.fill(label);
+  await input.press("Enter");
+}
+
+/** Opens the "Add timezone" dialog for a date column and submits `timezone` (the dialog stays open on an error). */
+export async function addTimezone(page: Page, columnIndex: number, timezone: string) {
+  await clickColumnAction(page, columnIndex, "Add timezone");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Timezone" }).fill(timezone);
+  await dialog.getByRole("button", { name: "Add timezone" }).click();
 }

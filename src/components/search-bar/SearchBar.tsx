@@ -1,5 +1,6 @@
 "use client";
 
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SearchMode } from "@/core/profile/types";
@@ -16,15 +17,20 @@ export function SearchBar() {
   const { term, mode } = activeProfile.display.searchState ?? DEFAULT_SEARCH_STATE;
 
   return (
-    <div className="flex items-center gap-2 border border-input p-2">
-      <Input
-        className="max-w-xs"
-        placeholder="Search visible columns…"
-        value={term}
-        onChange={(event) => setSearchState({ term: event.target.value, mode })}
-      />
+    <div className="flex max-w-full flex-wrap items-center gap-2">
+      <div className="relative w-full sm:w-72">
+        <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-8"
+          placeholder="Search visible columns…"
+          value={term}
+          onChange={(event) => setSearchState({ term: event.target.value, mode })}
+        />
+      </div>
       <ToggleGroup
         type="single"
+        variant="outline"
+        spacing={0}
         value={mode}
         onValueChange={(value) => value && setSearchState({ term, mode: value as SearchMode })}
       >
