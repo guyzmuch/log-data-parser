@@ -17,6 +17,7 @@ export function ProfileWizardHost() {
       open={wizardTarget !== null}
       onOpenChange={(open) => !open && closeWizard()}
       datasetRawText={dataset.rawText}
+      datasetName={dataset.name}
       initialProfile={wizardTarget === "new" || wizardTarget === null ? undefined : wizardTarget}
       onSave={saveAndApplyProfile}
     />

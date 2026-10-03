@@ -3,13 +3,11 @@ import type { Delimiter } from "@/core/parsing/types";
 export const DELIMITER_CANDIDATES: Delimiter[] = [",", "\t", "|", ";", " "];
 
 /**
- * Simple split on the delimiter — not RFC4180 quote-aware (a delimiter
- * inside a quoted field will still split there). Matches the project's
- * "nothing fancy" v1 scope; a quote-aware CSV parser is a future upgrade.
- *
- * TODO: a delimiter embedded inside quoted CSV data (e.g. `a,"b,c",d`) will
- * be split incorrectly — not handled, not tested. See "Advanced" ideas in
- * docs/project_idea.md.
+ * Simple split on the delimiter — not quote-aware (a delimiter inside a
+ * quoted field still splits there). That is the right behaviour for the
+ * log formats this path serves; real CSV with quoted fields goes through the
+ * `quoteAware` parsing mode instead (parseQuotedRows in parseRows.ts), which
+ * the wizard turns on by default for ".csv" files.
  */
 export function splitDelimitedLine(raw: string, delimiter: Delimiter): string[] {
   return raw.split(delimiter);

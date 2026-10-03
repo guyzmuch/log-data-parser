@@ -48,6 +48,19 @@ describe("BUILT_IN_PROFILES", () => {
       expect(records).toHaveLength(3);
       expect(records[0].fields.map((f) => f.value)).toEqual(["1", "alice", "engineer", "true"]);
     });
+
+    it("reads real CSV quoting in public/samples/quoted-fields.csv: commas, doubled quotes and line breaks stay in their cells", () => {
+      const profile = findBuiltIn("builtin:csv-with-header");
+      const { fieldNames, records } = parseDataset(readSample("quoted-fields.csv"), profile.parsing);
+
+      expect(fieldNames).toEqual(["id", "name", "note", "amount"]);
+      expect(records.map((r) => r.fields.map((f) => f.value))).toEqual([
+        ["1", "Smith, John", 'Said "hello" twice', "1200.50"],
+        ["2", "Doe, Jane", "Two lines:\nthe second one", "75"],
+        ["3", "Plain Person", "no quotes at all", "0"],
+        ["4", "Last, First", "", "12"],
+      ]);
+    });
   });
 
   describe("aws-alb-access-log (approximate)", () => {

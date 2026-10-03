@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildParsingPreview } from "@/core/parsing/buildParsingPreview";
+import {
+  buildParsingPreview as buildFromRows,
+  type DelimiterParsingChoices,
+} from "@/core/parsing/buildParsingPreview";
+import { toRawRows } from "@/core/parsing/parseRows";
+
+/** The tests describe sample *text*; the function takes rows split the way the choices say. */
+function buildParsingPreview(sampleText: string, choices: DelimiterParsingChoices) {
+  return buildFromRows(toRawRows(sampleText, choices.delimiter, choices.quoteAware === true), choices);
+}
 
 describe("buildParsingPreview", () => {
   it("parses with the chosen delimiter and no header", () => {
@@ -97,5 +106,34 @@ describe("buildParsingPreview", () => {
       trimBoundaryPartials: false,
     });
     expect("fieldNames" in config).toBe(false);
+  });
+
+  describe("quoted CSV", () => {
+    const quoted = (sample: string, overrides: Partial<DelimiterParsingChoices> = {}) =>
+      buildParsingPreview(sample, {
+        delimiter: ",",
+        hasHeaderRow: true,
+        stripQuotes: true,
+        trimBoundaryPartials: false,
+        quoteAware: true,
+        ...overrides,
+      });
+
+    it("records quoteAware in the config, only when it is on", () => {
+      expect(quoted("a,b\n1,2").config.quoteAware).toBe(true);
+      expect("quoteAware" in quoted("a,b\n1,2", { quoteAware: false }).config).toBe(false);
+    });
+
+    it("keeps a delimiter and a line break inside quotes in one cell", () => {
+      const { parsed } = quoted('name,note\n"Smith, John","line one\nline two"\nJane,plain');
+      expect(parsed.fieldNames).toEqual(["name", "note"]);
+      expect(parsed.records).toHaveLength(2);
+      expect(parsed.records[0].fields.map((f) => f.value)).toEqual(["Smith, John", "line one\nline two"]);
+    });
+
+    it("derives expectedFieldCount from whole quoted rows, not from the physical lines", () => {
+      const { config } = quoted('a,b\n"x\ny",1\n"p\nq",2');
+      expect(config.expectedFieldCount).toBe(2);
+    });
   });
 });

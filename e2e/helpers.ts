@@ -69,7 +69,8 @@ export async function selectDelimiter(page: Page, label: DelimiterLabel) {
 export async function configureWizard(page: Page, choices: WizardChoices) {
   await selectDelimiter(page, choices.delimiter);
   await setCheckbox(page, "First row is a header", choices.header ?? false);
-  await setCheckbox(page, "Trim cells & strip quotes", choices.stripQuotes ?? false);
+  // "Trim cells & strip quotes", or just "Trim cells" when CSV quoting rules are on.
+  await setCheckbox(page, "Trim cells", choices.stripQuotes ?? false);
 }
 
 export async function saveWizard(page: Page) {

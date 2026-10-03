@@ -1,8 +1,7 @@
 import type { ParsedRecord } from "@/core/dataset/types";
 import { applyBoundaryTrim } from "@/core/parsing/applyBoundaryTrim";
-import { splitDelimitedLine, stripQuotesFromValue } from "@/core/parsing/delimiter";
-import { parseRecord } from "@/core/parsing/parseRecord";
-import { splitIntoRecords } from "@/core/parsing/splitIntoRecords";
+import { cleanValue, recordFromValues } from "@/core/parsing/parseRecord";
+import { toRawRows, type RawRow } from "@/core/parsing/parseRows";
 import type { ParsingConfig } from "@/core/parsing/types";
 
 export interface ParsedDataset {
@@ -10,32 +9,30 @@ export interface ParsedDataset {
   records: ParsedRecord[];
 }
 
-/** Parses a whole Dataset's raw text with a Profile's parsing config into the full set of Records/Fields. */
-export function parseDataset(rawText: string, config: ParsingConfig): ParsedDataset {
-  const lines = splitIntoRecords(rawText);
-  if (lines.length === 0) {
+/** Turns already-split rows into Records per a Profile's parsing config: header names, cell cleanup, boundary trim. */
+export function parseRawRows(rows: RawRow[], config: ParsingConfig): ParsedDataset {
+  if (rows.length === 0) {
     return { fieldNames: config.fieldNames ?? [], records: [] };
   }
 
-  let dataLines = lines;
+  let dataRows = rows;
   let fieldNames = config.fieldNames;
 
   if (config.hasHeaderRow) {
-    const [headerLine, ...rest] = lines;
-    const headerValues = splitDelimitedLine(headerLine.raw, config.delimiter);
-    fieldNames = config.stripQuotes ? headerValues.map(stripQuotesFromValue) : headerValues;
-    dataLines = rest;
+    const [headerRow, ...rest] = rows;
+    fieldNames = headerRow.values.map((value) => cleanValue(value, config));
+    dataRows = rest;
   }
 
   const configWithNames: ParsingConfig = { ...config, fieldNames };
-  let records = dataLines.map((line) => parseRecord(line, configWithNames));
+  let records = dataRows.map((row) => recordFromValues(row.index, row.raw, row.values, configWithNames));
 
   if (config.trimBoundaryPartials) {
     records = applyBoundaryTrim(records, config.expectedFieldCount);
   }
 
   // Always prefer the keys a parsed Record actually ended up with over the
-  // raw config.fieldNames: parseRecord already applies the correct
+  // raw config.fieldNames: recordFromValues already applies the correct
   // per-field fallback (config.fieldNames?.[i] ?? "Field N"), so this is
   // right whether fieldNames is absent, full, or only a partial prefix (a
   // built-in Profile may only name the fields that reliably stay aligned —
@@ -52,4 +49,9 @@ export function parseDataset(rawText: string, config: ParsingConfig): ParsedData
   const resolvedFieldNames = widestRecord?.fields.map((field) => field.key) ?? fieldNames ?? [];
 
   return { fieldNames: resolvedFieldNames, records };
+}
+
+/** Parses a whole Dataset's raw text with a Profile's parsing config into the full set of Records/Fields. */
+export function parseDataset(rawText: string, config: ParsingConfig): ParsedDataset {
+  return parseRawRows(toRawRows(rawText, config.delimiter, config.quoteAware === true), config);
 }

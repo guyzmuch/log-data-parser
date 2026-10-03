@@ -89,4 +89,64 @@ describe("parseDataset", () => {
     const result = parseDataset("id,name\n1,alice\n2,bob,extra", baseConfig({ hasHeaderRow: true }));
     expect(result.fieldNames).toEqual(["id", "name", "Field 3"]);
   });
+
+  describe("quoted CSV (quoteAware)", () => {
+    const csv = (overrides: Partial<DelimiterParsingConfig> = {}) =>
+      baseConfig({ quoteAware: true, hasHeaderRow: true, stripQuotes: true, ...overrides });
+
+    it("keeps delimiters and line breaks inside quotes in one cell, and numbers records by row", () => {
+      const result = parseDataset('name,note\n"Smith, John","line one\nline two"\nJane,plain\n', csv());
+
+      expect(result.fieldNames).toEqual(["name", "note"]);
+      expect(result.records).toHaveLength(2);
+      expect(result.records[0].index).toBe(1);
+      expect(result.records[0].fields.map((f) => f.value)).toEqual(["Smith, John", "line one\nline two"]);
+      expect(result.records[1].index).toBe(2);
+      expect(result.records[1].fields.map((f) => f.value)).toEqual(["Jane", "plain"]);
+    });
+
+    it("the plain splitter, for comparison, cuts the same text apart", () => {
+      const result = parseDataset('a,"b,c",d', baseConfig());
+      expect(result.records[0].fields.map((f) => f.value)).toEqual(["a", '"b', 'c"', "d"]);
+    });
+
+    it("trims blanks around cells and header names when stripQuotes (\"Trim cells\") is on, and not otherwise", () => {
+      const padded = "id , name \n 1 , alice ";
+      expect(parseDataset(padded, csv()).fieldNames).toEqual(["id", "name"]);
+      expect(parseDataset(padded, csv()).records[0].fields.map((f) => f.value)).toEqual(["1", "alice"]);
+
+      const untouched = parseDataset(padded, csv({ stripQuotes: false }));
+      expect(untouched.fieldNames).toEqual(["id ", " name "]);
+      expect(untouched.records[0].fields.map((f) => f.value)).toEqual([" 1 ", " alice "]);
+    });
+
+    it("never strips a second layer of quotes: quotes that belong to the data survive", () => {
+      const result = parseDataset('v\n"""quoted"""', csv());
+      expect(result.records[0].fields[0].value).toBe('"quoted"');
+    });
+
+    it("applies the boundary trim to whole rows", () => {
+      const result = parseDataset('a,b\n"short"\n"x\ny",2\n"z",3', csv({ trimBoundaryPartials: true, expectedFieldCount: 2 }));
+      expect(result.records.map((r) => r.fields.map((f) => f.value))).toEqual([
+        ["x\ny", "2"],
+        ["z", "3"],
+      ]);
+    });
+
+    it("supports other delimiters, still honouring quotes", () => {
+      const result = parseDataset('a|b\n"x|y"|2', csv({ delimiter: "|" }));
+      expect(result.records[0].fields.map((f) => f.value)).toEqual(["x|y", "2"]);
+    });
+
+    it("reports no records for empty text", () => {
+      expect(parseDataset("", csv())).toEqual({ fieldNames: [], records: [] });
+    });
+
+    it("is off when the option is absent or false (existing Profiles parse exactly as before)", () => {
+      const text = 'a,"b,c"';
+      expect(parseDataset(text, baseConfig()).records[0].fields).toHaveLength(3);
+      expect(parseDataset(text, baseConfig({ quoteAware: false })).records[0].fields).toHaveLength(3);
+      expect(parseDataset(text, baseConfig({ quoteAware: true })).records[0].fields).toHaveLength(2);
+    });
+  });
 });

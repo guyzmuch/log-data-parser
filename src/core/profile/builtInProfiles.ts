@@ -49,6 +49,8 @@ export const BUILT_IN_PROFILES: Profile[] = [
       delimiter: ",",
       hasHeaderRow: true,
       stripQuotes: true,
+      // Real CSV: quoted cells may contain commas and line breaks.
+      quoteAware: true,
       trimBoundaryPartials: false,
       expectedFieldCount: 0,
     },

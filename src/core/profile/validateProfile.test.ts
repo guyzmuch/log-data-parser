@@ -52,6 +52,14 @@ describe("normalizeProfile", () => {
     expect(normalizeProfile(value)).toBeUndefined();
   });
 
+  it("accepts the optional quoteAware flag, and rejects one that isn't a boolean", () => {
+    const profile = validProfile();
+    expect(normalizeProfile({ ...profile, parsing: { ...profile.parsing, quoteAware: true } })?.parsing).toMatchObject({
+      quoteAware: true,
+    });
+    expect(normalizeProfile({ ...profile, parsing: { ...profile.parsing, quoteAware: "yes" } })).toBeUndefined();
+  });
+
   it("drops Derived Field specs of an unsupported kind or with missing parts, keeping the rest", () => {
     const profile = validProfile();
     const stored = {

@@ -1,0 +1,6 @@
+id,name,note,amount
+1,"Smith, John","Said ""hello"" twice",1200.50
+2,"Doe, Jane","Two lines:
+the second one",75
+3,Plain Person,no quotes at all,0
+4,"Last, First ",,12

@@ -17,6 +17,7 @@ function normalizeParsing(value: unknown): ParsingConfig | undefined {
     !(DELIMITER_CANDIDATES as string[]).includes(v.delimiter) ||
     typeof v.hasHeaderRow !== "boolean" ||
     typeof v.stripQuotes !== "boolean" ||
+    (v.quoteAware !== undefined && typeof v.quoteAware !== "boolean") ||
     typeof v.trimBoundaryPartials !== "boolean" ||
     typeof v.expectedFieldCount !== "number" ||
     (v.fieldNames !== undefined && !isStringArray(v.fieldNames))

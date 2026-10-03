@@ -1,5 +1,7 @@
+FO  api-server - GET /api/users/42 200 32ms
 2026-07-28 17:23:41 INFO api-server - GET /api/users/123 200 42ms
 2026-07-28 17:23:42 INFO api-server - GET /api/users/456 200 38ms
 2026-07-28 17:23:43 WARN api-server - GET /api/users/999 404 12ms
 2026-07-28 17:23:45 ERROR api-server - POST /api/orders 500 183ms
 2026-07-28 17:23:47 INFO api-server - GET /api/health 200 3ms
+2026-07-28 17:23:59 INFO api-se

@@ -18,11 +18,10 @@ describe("splitDelimitedLine", () => {
     expect(splitDelimitedLine("a;b;c", ";")).toEqual(["a", "b", "c"]);
   });
 
-  // TODO: not implemented (see TODO in delimiter.ts / docs/project_idea.md Advanced section).
-  // splitDelimitedLine is a plain string split, so a delimiter inside a quoted
-  // CSV value currently splits incorrectly instead of being treated as one field.
-  it.skip("does not split on a delimiter inside a quoted value (RFC4180-style)", () => {
-    expect(splitDelimitedLine('a,"b,c",d', ",")).toEqual(["a", "b,c", "d"]);
+  // splitDelimitedLine is a plain string split by design. Quoted CSV is handled by the quoteAware
+  // parsing mode — see parseRows.test.ts ("keeps a delimiter inside quotes in the cell").
+  it("splits on a delimiter even inside quotes (use the quoteAware mode for real CSV)", () => {
+    expect(splitDelimitedLine('a,"b,c",d', ",")).toEqual(["a", '"b', 'c"', "d"]);
   });
 });
 

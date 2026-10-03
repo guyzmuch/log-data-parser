@@ -9,6 +9,13 @@ export interface DelimiterParsingConfig {
   delimiter: Delimiter;
   hasHeaderRow: boolean;
   stripQuotes: boolean;
+  /**
+   * Parse with CSV quoting rules (via PapaParse) instead of a plain split: a delimiter or a line break
+   * inside "double quotes" stays in the cell, and `""` is a literal quote. The parser removes the quotes
+   * itself, so `stripQuotes` then only trims the blanks around each cell. Omitted means off; Profiles
+   * saved before this existed behave exactly as before.
+   */
+  quoteAware?: boolean;
   /** Compares the first/last Record's Field count against expectedFieldCount and drops it if short. */
   trimBoundaryPartials: boolean;
   /** Ground truth for boundary trimming, frozen into the Profile at wizard-config time. */
