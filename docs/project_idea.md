@@ -47,10 +47,9 @@ when parsing a column in a certain way, add the new column after the "parent" co
 You could also display entry in 2 lines
 Posibility to add comment on each data line
 user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color).
-
-
-
 like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
+
+
  
 
 ## improvement seen while working

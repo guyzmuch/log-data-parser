@@ -92,6 +92,29 @@ describe("buildExportRows", () => {
     expect(result.rows).toEqual([["a", "Invalid parse"]]);
   });
 
+  describe("cell filters", () => {
+    const records = [record(0, "a", "1"), record(1, "b", "2"), record(2, "a", "3")];
+    const forA = { id: "f", key: "name", value: "a", negate: false, disabled: false };
+
+    it("'Matching filter' keeps the records that pass the cell filters", () => {
+      expect(buildExportRows(records, display(), "matching-filter", new Set(), new Map(), [forA]).rows).toEqual([
+        ["a", "1"],
+        ["a", "3"],
+      ]);
+      expect(buildExportRows(records, display(), "matching-filter", new Set(), new Map(), [{ ...forA, negate: true }]).rows).toEqual([["b", "2"]]);
+    });
+
+    it("ignores disabled filters, and the other scopes ignore all of them", () => {
+      expect(buildExportRows(records, display(), "matching-filter", new Set(), new Map(), [{ ...forA, disabled: true }]).rows).toHaveLength(3);
+      expect(buildExportRows(records, display(), "all", new Set(), new Map(), [forA]).rows).toHaveLength(3);
+    });
+
+    it("combines with a Filter-mode search", () => {
+      const searching = display({ searchState: { term: "3", mode: "filter" } });
+      expect(buildExportRows(records, searching, "matching-filter", new Set(), new Map(), [forA]).rows).toEqual([["a", "3"]]);
+    });
+  });
+
   describe("comments", () => {
     const records = [record(0, "a", "1"), record(1, "b", "2"), record(2, "c", "3")];
 

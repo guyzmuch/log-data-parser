@@ -6,6 +6,10 @@ function dateKey(spec: DateDerivedFieldSpec): string {
       return `${spec.sourceFieldKey} (ISO)`;
     case "timezone":
       return spec.timezone ? `${spec.sourceFieldKey} (${spec.timezone})` : `${spec.sourceFieldKey} (local time)`;
+    case "utc-date":
+      return `${spec.sourceFieldKey} (date)`;
+    case "utc-time":
+      return `${spec.sourceFieldKey} (time)`;
   }
 }
 

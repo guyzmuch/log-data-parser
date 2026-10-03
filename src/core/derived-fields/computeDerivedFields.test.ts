@@ -64,6 +64,44 @@ describe("computeDerivedFields", () => {
     expect(results.every((f) => f.parseError === undefined)).toBe(true);
   });
 
+  describe("utc date and time split", () => {
+    const split: DerivedFieldSpec[] = [
+      { kind: "date", sourceFieldKey: "created", representation: "utc-date" },
+      { kind: "date", sourceFieldKey: "created", representation: "utc-time" },
+    ];
+    const values = (value: string) => computeDerivedFields(field(value), split).map((f) => f.value);
+
+    it("splits an instant into its UTC date and time", () => {
+      expect(computeDerivedFields(field(KNOWN_INSTANT), split)).toEqual([
+        { key: "created (date)", value: "2026-01-15", sourceFieldKey: "created" },
+        { key: "created (time)", value: "12:30:00", sourceFieldKey: "created" },
+      ]);
+    });
+
+    it("keeps milliseconds only when there are some", () => {
+      expect(values("2026-01-15T12:30:48.137Z")).toEqual(["2026-01-15", "12:30:48.137"]);
+      expect(values("2026-01-15T12:30:48.100Z")).toEqual(["2026-01-15", "12:30:48.100"]);
+    });
+
+    it("converts epoch seconds and milliseconds", () => {
+      expect(values("1768480200")).toEqual(["2026-01-15", "12:30:00"]);
+      expect(values("1768480200137")).toEqual(["2026-01-15", "12:30:00.137"]);
+    });
+
+    it("uses UTC whatever the offset written in the value", () => {
+      // 23:30 at +02:00 is 21:30 UTC the same day; 01:30 at +02:00 is 23:30 UTC the day before.
+      expect(values("2026-01-15T23:30:00+02:00")).toEqual(["2026-01-15", "21:30:00"]);
+      expect(values("2026-01-16T01:30:00+02:00")).toEqual(["2026-01-15", "23:30:00"]);
+    });
+
+    it("marks an unparseable value as a Parse Error in both columns", () => {
+      expect(computeDerivedFields(field("not a date"), split)).toEqual([
+        { key: "created (date)", value: "", sourceFieldKey: "created", parseError: true },
+        { key: "created (time)", value: "", sourceFieldKey: "created", parseError: true },
+      ]);
+    });
+  });
+
   describe("unescape", () => {
     it("un-escapes common backslash sequences", () => {
       const specs: DerivedFieldSpec[] = [{ kind: "unescape", sourceFieldKey: "created" }];

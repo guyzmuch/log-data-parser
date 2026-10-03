@@ -2,13 +2,14 @@
 
 import { useMemo } from "react";
 import type { ParsedRecord } from "@/core/dataset/types";
+import { enabledFilters, matchesFieldFilters } from "@/core/filters/fieldFilters";
 import { matchesSearch } from "@/core/search/matchesSearch";
 import { useAppStore } from "@/state/useAppStore";
 
 export interface VisibleRecords {
   /** Records not hidden by the user (what "Hide selected" can still act on, before any search filter). */
   shownRecords: ParsedRecord[];
-  /** What the table actually renders: shownRecords, minus those a Filter-mode search excludes. */
+  /** What the table actually renders: shownRecords, minus those a Filter-mode search or a cell filter excludes. */
   visibleRecords: ParsedRecord[];
   visibleIndexesInOrder: number[];
   /** Position (1-based) of each Record among all parsed Records, by Record index — the "#" column. */
@@ -26,6 +27,7 @@ export function useVisibleRecords(): VisibleRecords {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const hiddenRecordIndexes = useAppStore((s) => s.hiddenRecordIndexes);
   const selectedRecordIndexes = useAppStore((s) => s.selectedRecordIndexes);
+  const fieldFilters = useAppStore((s) => s.fieldFilters);
 
   const visibleFieldKeys = activeProfile?.display.visibleFieldKeys;
   const searchState = activeProfile?.display.searchState;
@@ -36,12 +38,17 @@ export function useVisibleRecords(): VisibleRecords {
 
   const { shownRecords, visibleRecords } = useMemo(() => {
     const shown = records.filter((record) => !hiddenRecordIndexes.has(record.index));
+    const hasFieldFilters = enabledFilters(fieldFilters).length > 0;
+    const searching = mode === "filter" && visibleFieldKeys !== undefined;
     const visible =
-      mode === "filter" && visibleFieldKeys
-        ? shown.filter((record) => matchesSearch(record, visibleFieldKeys, term))
+      searching || hasFieldFilters
+        ? shown.filter(
+            (record) =>
+              matchesFieldFilters(record, fieldFilters) && (!searching || matchesSearch(record, visibleFieldKeys, term)),
+          )
         : shown;
     return { shownRecords: shown, visibleRecords: visible };
-  }, [records, hiddenRecordIndexes, mode, term, visibleFieldKeys]);
+  }, [records, hiddenRecordIndexes, mode, term, visibleFieldKeys, fieldFilters]);
 
   const visibleIndexesInOrder = useMemo(() => visibleRecords.map((record) => record.index), [visibleRecords]);
   const visibleSelectedCount = useMemo(

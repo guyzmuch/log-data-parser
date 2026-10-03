@@ -14,6 +14,7 @@ import {
 import { buildExportRows } from "@/core/export/buildExportRows";
 import { toCSVBlob } from "@/core/export/toCSVBlob";
 import type { ExportScope } from "@/core/export/types";
+import { enabledFilters } from "@/core/filters/fieldFilters";
 import { downloadBlob } from "@/lib/downloadBlob";
 import { useAppStore } from "@/state/useAppStore";
 
@@ -29,12 +30,14 @@ export function ExportMenu() {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const hiddenRecordIndexes = useAppStore((s) => s.hiddenRecordIndexes);
   const recordComments = useAppStore((s) => s.recordComments);
+  const fieldFilters = useAppStore((s) => s.fieldFilters);
 
   if (!activeProfile) return null;
 
   const { searchState } = activeProfile.display;
-  const filterActive = searchState?.mode === "filter" && (searchState.term.trim() ?? "") !== "";
-  const { header, rows } = buildExportRows(records, activeProfile.display, scope, hiddenRecordIndexes, recordComments);
+  const filterActive =
+    (searchState?.mode === "filter" && (searchState.term.trim() ?? "") !== "") || enabledFilters(fieldFilters).length > 0;
+  const { header, rows } = buildExportRows(records, activeProfile.display, scope, hiddenRecordIndexes, recordComments, fieldFilters);
 
   function handleExport() {
     const blob = toCSVBlob(header, rows);

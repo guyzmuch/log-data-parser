@@ -12,6 +12,7 @@ import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
 import { createProfile } from "@/core/profile/createProfile";
 import { currentFieldOrder, moveBefore, naturalFieldOrder, visibleInOrder } from "@/core/profile/fieldOrder";
 import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
+import { addFieldFilter, pruneFieldFilters, type FieldFilter } from "@/core/filters/fieldFilters";
 import { hasColumnOption, setColumnOption } from "@/core/profile/columnOptions";
 import type { ColumnOption, DisplayConfig, Profile, SearchState } from "@/core/profile/types";
 import { addView, deleteView, reconcileViews, renameView, switchView, syncActiveView } from "@/core/profile/views";
@@ -30,6 +31,8 @@ interface AppState {
   hiddenRecordIndexes: Set<number>;
   /** The user's remarks on Records, by Record index. Session-only like hidden Records; exported as an extra CSV column. */
   recordComments: Map<number, string>;
+  /** Column-equals-value filters added from cells (see FieldFilter). Session-only; they combine with the search and each other. */
+  fieldFilters: FieldFilter[];
   /** Whether the table shows its Comment column. Off by default; comments are exported either way. */
   showComments: boolean;
   /** Rows currently selected (via click/ctrl-click/shift-click), candidates for hiding — not the same as hiddenRecordIndexes. */
@@ -126,6 +129,14 @@ interface AppState {
   /** Sets the comment on a Record; blank text removes it. */
   setRecordComment: (index: number, comment: string) => void;
   setShowComments: (show: boolean) => void;
+  /** Adds "column = value" (or, with negate, "column != value") as a filter. The same column and value is never listed twice. */
+  addFieldFilter: (key: string, value: string, negate: boolean) => void;
+  removeFieldFilter: (id: string) => void;
+  /** Turns "filter for" into "filter out" and back. */
+  toggleFieldFilterNegation: (id: string) => void;
+  /** Keeps a filter listed but stops it filtering, or starts it again. */
+  toggleFieldFilterDisabled: (id: string) => void;
+  clearFieldFilters: () => void;
   /** Clears hiddenRecordIndexes, making every Record visible again. */
   unhideAllRecords: () => void;
   /** Deselects every Record. */
@@ -133,6 +144,8 @@ interface AppState {
 
   /** Adds the default ISO/local-time pair for a Field. Specs it already has are skipped. */
   addDefaultDateDerivedFields: (sourceFieldKey: string) => void;
+  /** Adds the date and the time of a Field as two separate columns (UTC), e.g. to filter on the day. Specs it already has are skipped. */
+  addDateTimeSplitDerivedFields: (sourceFieldKey: string) => void;
   /** Adds one more timezone-specific Derived Field for a Field — additive, never replaces. No-op for an unknown timezone. */
   addTimezoneDerivedField: (sourceFieldKey: string, timezone: string) => void;
   /** Adds an unescaped Derived Field for a Field. Skipped if it already has one. */
@@ -210,6 +223,7 @@ export const useAppStore = create<AppState>((set, get) => {
     activeProfile: null,
     hiddenRecordIndexes: new Set(),
     recordComments: new Map(),
+    fieldFilters: [],
     showComments: false,
     selectedRecordIndexes: new Set(),
     selectionAnchorIndex: null,
@@ -233,6 +247,7 @@ export const useAppStore = create<AppState>((set, get) => {
         records: [],
         hiddenRecordIndexes: new Set(),
         recordComments: new Map(),
+        fieldFilters: [],
         showComments: false,
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
@@ -258,6 +273,8 @@ export const useAppStore = create<AppState>((set, get) => {
         records: applyDerivedFields(baseRecords, display.derivedFieldSelections),
         // Comments survive a profile switch (same Dataset); only those on Records the new parse lacks go.
         recordComments: new Map([...get().recordComments].filter(([index]) => parsedIndexes.has(index))),
+        // Filters survive a profile switch on the same Dataset, except those on columns the new parse and display lack.
+        fieldFilters: pruneFieldFilters(get().fieldFilters, new Set(display.fieldOrder ?? baseFieldNames)),
         hiddenRecordIndexes: new Set(),
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
@@ -447,6 +464,24 @@ export const useAppStore = create<AppState>((set, get) => {
 
     setShowComments: (show) => set({ showComments: show }),
 
+    addFieldFilter: (key, value, negate) => {
+      set({ fieldFilters: addFieldFilter(get().fieldFilters, crypto.randomUUID(), key, value, negate) });
+    },
+
+    removeFieldFilter: (id) => {
+      set({ fieldFilters: get().fieldFilters.filter((filter) => filter.id !== id) });
+    },
+
+    toggleFieldFilterNegation: (id) => {
+      set({ fieldFilters: get().fieldFilters.map((f) => (f.id === id ? { ...f, negate: !f.negate } : f)) });
+    },
+
+    toggleFieldFilterDisabled: (id) => {
+      set({ fieldFilters: get().fieldFilters.map((f) => (f.id === id ? { ...f, disabled: !f.disabled } : f)) });
+    },
+
+    clearFieldFilters: () => set({ fieldFilters: [] }),
+
     unhideAllRecords: () => {
       set({ hiddenRecordIndexes: new Set() });
     },
@@ -459,6 +494,13 @@ export const useAppStore = create<AppState>((set, get) => {
       addDerivedFields([
         { kind: "date", sourceFieldKey, representation: "iso" },
         { kind: "date", sourceFieldKey, representation: "timezone" },
+      ]);
+    },
+
+    addDateTimeSplitDerivedFields: (sourceFieldKey) => {
+      addDerivedFields([
+        { kind: "date", sourceFieldKey, representation: "utc-date" },
+        { kind: "date", sourceFieldKey, representation: "utc-time" },
       ]);
     },
 

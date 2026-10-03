@@ -6,6 +6,8 @@ describe("isDerivedFieldSpec", () => {
     [{ kind: "date", sourceFieldKey: "a", representation: "iso" }],
     [{ kind: "date", sourceFieldKey: "a", representation: "timezone" }],
     [{ kind: "date", sourceFieldKey: "a", representation: "timezone", timezone: "Europe/Paris" }],
+    [{ kind: "date", sourceFieldKey: "a", representation: "utc-date" }],
+    [{ kind: "date", sourceFieldKey: "a", representation: "utc-time" }],
     [{ kind: "unescape", sourceFieldKey: "a" }],
     [{ kind: "json-key", sourceFieldKey: "a", jsonKey: "user" }],
   ])("accepts %p", (spec) => {

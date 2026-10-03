@@ -28,6 +28,11 @@ function getFormatter(timeZone: string | undefined): Intl.DateTimeFormat {
   return formatter;
 }
 
+/** "12:30:48.137Z" -> "12:30:48.137", "12:30:00.000Z" -> "12:30:00": milliseconds only when there are some. */
+function formatUtcTime(isoTime: string): string {
+  return isoTime.replace(/Z$/, "").replace(/\.000$/, "");
+}
+
 function computeDate(field: Field, spec: DateDerivedFieldSpec, key: string, parses: CellParses): Field {
   parses.date ??= parseFlexibleDate(field.value);
   const date = parses.date;
@@ -38,6 +43,10 @@ function computeDate(field: Field, spec: DateDerivedFieldSpec, key: string, pars
   try {
     if (spec.representation === "iso") {
       return { key, value: date.toISOString(), sourceFieldKey: field.key };
+    }
+    if (spec.representation === "utc-date" || spec.representation === "utc-time") {
+      const [day, time] = date.toISOString().split("T");
+      return { key, value: spec.representation === "utc-date" ? day : formatUtcTime(time), sourceFieldKey: field.key };
     }
     // representation === "timezone" (spec.timezone omitted = browser-local)
     return { key, value: getFormatter(spec.timezone).format(date), sourceFieldKey: field.key };

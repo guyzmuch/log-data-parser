@@ -7,6 +7,7 @@ import {
   ArrowRightIcon,
   BackspaceIcon,
   BracketsCurlyIcon,
+  CalendarBlankIcon,
   ClockIcon,
   DotsThreeVerticalIcon,
   EyeSlashIcon,
@@ -94,6 +95,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
   const moveFieldDown = useAppStore((s) => s.moveFieldDown);
   const renameField = useAppStore((s) => s.renameField);
   const addDefaultDateDerivedFields = useAppStore((s) => s.addDefaultDateDerivedFields);
+  const addDateTimeSplitDerivedFields = useAppStore((s) => s.addDateTimeSplitDerivedFields);
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
   const addUnescapeDerivedField = useAppStore((s) => s.addUnescapeDerivedField);
 
@@ -110,6 +112,17 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
   const derivedSpec = derivedFieldSelections.find((spec) => derivedFieldKey(spec) === fieldKey);
   const fromThisField = derivedFieldSelections.filter((spec) => spec.sourceFieldKey === fieldKey);
   const hasDate = fromThisField.some((spec) => spec.kind === "date");
+  // "Parse as date" gives the ISO / local-time pair; "Add timezone" only makes sense once that pair (or a timezone) exists.
+  const hasZonedDate = fromThisField.some(
+    (spec) => spec.kind === "date" && (spec.representation === "iso" || spec.representation === "timezone"),
+  );
+  const isDateSplit = (spec: DerivedFieldSpec) =>
+    spec.kind === "date" && (spec.representation === "utc-date" || spec.representation === "utc-time");
+  const hasDateSplit = fromThisField.some(isDateSplit);
+  // For a derived date column: whether its source already has the date/time split.
+  const sourceHasDateSplit = derivedSpec
+    ? derivedFieldSelections.some((spec) => spec.sourceFieldKey === derivedSpec.sourceFieldKey && isDateSplit(spec))
+    : false;
   const hasJson = fromThisField.some((spec) => spec.kind === "json-key");
   const hasUnescape = fromThisField.some((spec) => spec.kind === "unescape");
 
@@ -235,11 +248,18 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
             {derivedSpec?.kind === "date" && (
               <>
                 <DropdownMenuSeparator />
-                {/* The source column is usually hidden once derived from, so its timezone action is offered here too. */}
+                {/* The source column is usually hidden once derived from, so its date actions are offered here too. */}
                 <DropdownMenuItem onSelect={() => setTimezoneOpen(true)}>
                   <GlobeIcon />
                   Add timezone…
                 </DropdownMenuItem>
+                {!sourceHasDateSplit && (
+                  <DropdownMenuItem onSelect={() => addDateTimeSplitDerivedFields(derivedSpec.sourceFieldKey)}>
+                    <CalendarBlankIcon />
+                    Split date and time
+                    <span className="ml-auto text-xs text-muted-foreground">UTC</span>
+                  </DropdownMenuItem>
+                )}
               </>
             )}
 
@@ -247,7 +267,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Derive new column</DropdownMenuLabel>
-                {hasDate ? (
+                {hasZonedDate ? (
                   <DropdownMenuItem onSelect={() => setTimezoneOpen(true)}>
                     <GlobeIcon />
                     Add timezone…
@@ -260,6 +280,13 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
                     <ClockIcon />
                     Parse as date
                     {detected.includes("date") && detectedTag}
+                  </DropdownMenuItem>
+                )}
+                {!hasDateSplit && (
+                  <DropdownMenuItem onSelect={() => addDateTimeSplitDerivedFields(fieldKey)}>
+                    <CalendarBlankIcon />
+                    Split date and time
+                    <span className="ml-auto text-xs text-muted-foreground">UTC</span>
                   </DropdownMenuItem>
                 )}
                 {!hasJson && (

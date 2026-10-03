@@ -1,6 +1,7 @@
 "use client";
 
 import { DataTable } from "@/components/data-table/DataTable";
+import { FilterBar } from "@/components/data-table/FilterBar";
 import { TableToolbar } from "@/components/data-table/TableToolbar";
 import { DatasetInput } from "@/components/dataset-input/DatasetInput";
 import { ProfileChooser } from "@/components/profile-wizard/ProfileChooser";
@@ -29,6 +30,7 @@ export function Workspace() {
   return (
     <>
       <TableToolbar />
+      <FilterBar />
       <DataTable />
     </>
   );

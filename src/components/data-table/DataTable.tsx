@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { MagnifyingGlassMinusIcon, MagnifyingGlassPlusIcon } from "@phosphor-icons/react";
 import { ColumnHeader } from "@/components/data-table/ColumnHeader";
 import { ValueBadge } from "@/components/data-table/ValueBadge";
 import { useColorFit } from "@/components/data-table/useColorFit";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { maxValueLengths } from "@/core/dataset/valueLengths";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { enabledFilters } from "@/core/filters/fieldFilters";
 import { hasColumnOption } from "@/core/profile/columnOptions";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
@@ -105,6 +107,56 @@ function ResizeHandle({ fieldKey, label }: { fieldKey: string; label: string }) 
   );
 }
 
+/**
+ * A data cell. Hovering it shows two buttons to filter on its value (like Kibana): keep only the rows with this
+ * exact value in this column, or leave them out. The buttons exist only while the cell is hovered, so the many cells
+ * of a big table stay cheap.
+ */
+function DataCell({
+  fieldKey,
+  value,
+  className,
+  title,
+  children,
+}: {
+  fieldKey: string;
+  value: string;
+  className: string;
+  title?: string;
+  children: ReactNode;
+}) {
+  const addFieldFilter = useAppStore((s) => s.addFieldFilter);
+  const [hovered, setHovered] = useState(false);
+
+  function filter(event: MouseEvent, negate: boolean) {
+    event.stopPropagation(); // not a click on the row: it must not select it
+    addFieldFilter(fieldKey, value, negate);
+    setHovered(false);
+  }
+
+  const buttonClass = "grid size-6 place-items-center outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring";
+  return (
+    <TableCell
+      className={cn("relative", className)}
+      title={title}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+      {hovered && (
+        <span className="absolute inset-y-0 right-1 my-auto flex h-6 items-center border border-border bg-background shadow-sm">
+          <button type="button" aria-label="Filter for value" title="Filter for value" onClick={(e) => filter(e, false)} className={buttonClass}>
+            <MagnifyingGlassPlusIcon className="size-4" />
+          </button>
+          <button type="button" aria-label="Filter out value" title="Filter out value" onClick={(e) => filter(e, true)} className={buttonClass}>
+            <MagnifyingGlassMinusIcon className="size-4" />
+          </button>
+        </span>
+      )}
+    </TableCell>
+  );
+}
+
 /** Width of the comment column. */
 const COMMENT_COLUMN_WIDTH = "18rem";
 
@@ -171,6 +223,7 @@ export function DataTable() {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const selectedRecordIndexes = useAppStore((s) => s.selectedRecordIndexes);
   const showComments = useAppStore((s) => s.showComments);
+  const fieldFilters = useAppStore((s) => s.fieldFilters);
   const selectRecord = useAppStore((s) => s.selectRecord);
   const selectAllVisible = useAppStore((s) => s.selectAllVisible);
   const deselectAllVisible = useAppStore((s) => s.deselectAllVisible);
@@ -203,7 +256,11 @@ export function DataTable() {
   if (visibleRecords.length === 0) {
     return (
       <p className="px-5 text-sm text-muted-foreground">
-        {shownRecords.length === 0 ? "All records are hidden." : "No records match your search."}
+        {shownRecords.length === 0
+          ? "All records are hidden."
+          : enabledFilters(fieldFilters).length > 0
+            ? "No records match the filters."
+            : "No records match your search."}
       </p>
     );
   }
@@ -357,9 +414,15 @@ export function DataTable() {
                 const value = field?.value ?? "";
                 const content = mode === "highlight" ? highlightMatches(value, term) : value;
                 return (
-                  <TableCell key={key} className={cellClass} title={value.length > COLUMN_MAX_CH || columnWidths?.[key] ? value : undefined}>
+                  <DataCell
+                    key={key}
+                    fieldKey={key}
+                    value={value}
+                    className={cellClass}
+                    title={value.length > COLUMN_MAX_CH || columnWidths?.[key] ? value : undefined}
+                  >
                     {hasColumnOption(columnOptions, key, "colorCode") ? <ValueBadge value={value}>{content}</ValueBadge> : content}
-                  </TableCell>
+                  </DataCell>
                 );
               })}
               {showComments && <CommentCell index={record.index} />}

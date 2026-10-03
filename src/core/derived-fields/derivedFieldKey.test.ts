@@ -25,6 +25,11 @@ describe("derivedFieldKey", () => {
     );
   });
 
+  it("names the UTC date and time columns after their source", () => {
+    expect(derivedFieldKey({ kind: "date", sourceFieldKey: "ts", representation: "utc-date" })).toBe("ts (date)");
+    expect(derivedFieldKey({ kind: "date", sourceFieldKey: "ts", representation: "utc-time" })).toBe("ts (time)");
+  });
+
   it("names an unescape derived field", () => {
     expect(derivedFieldKey({ kind: "unescape", sourceFieldKey: "message" })).toBe("message (unescaped)");
   });

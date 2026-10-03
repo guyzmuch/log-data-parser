@@ -180,6 +180,32 @@ describe("Derived Field actions", () => {
     expect(state().records[0].fields.find((f) => f.key === "when (ISO)")!.value).toBe("2026-01-15T12:30:00.000Z");
   });
 
+  it("splits a date into a date column and a time column, next to the source, which is hidden", () => {
+    state().addDateTimeSplitDerivedFields("when");
+    const display = state().activeProfile!.display;
+    expect(display.fieldOrder).toEqual(["id", "payload", "when", "when (date)", "when (time)"]);
+    expect(display.visibleFieldKeys).toEqual(["id", "payload", "when (date)", "when (time)"]);
+    const first = state().records[0].fields;
+    expect(first.find((f) => f.key === "when (date)")!.value).toBe("2026-01-15");
+    expect(first.find((f) => f.key === "when (time)")!.value).toBe("12:30:00");
+  });
+
+  it("the split and the ISO / local pair can both be added, and neither duplicates the other", () => {
+    state().addDateTimeSplitDerivedFields("when");
+    state().addDefaultDateDerivedFields("when");
+    state().addDateTimeSplitDerivedFields("when");
+    expect(state().activeProfile!.display.derivedFieldSelections).toHaveLength(4);
+    expect(state().activeProfile!.display.fieldOrder).toEqual([
+      "id",
+      "payload",
+      "when",
+      "when (date)",
+      "when (time)",
+      "when (ISO)",
+      "when (local time)",
+    ]);
+  });
+
   it("is idempotent: asking twice doesn't duplicate columns", () => {
     state().addDefaultDateDerivedFields("when");
     state().addDefaultDateDerivedFields("when");
@@ -382,6 +408,57 @@ describe("column order and visibility (columns popover)", () => {
     expect(visible()).toEqual(["when", "id"]);
     state().toggleFieldVisibility("payload");
     expect(visible()).toEqual(["when", "id", "payload"]);
+  });
+});
+
+describe("cell filters", () => {
+  const filters = () => state().fieldFilters;
+
+  beforeEach(() => {
+    load();
+  });
+
+  it("adds a filter for a column and value, flips it, disables it and removes it", () => {
+    state().addFieldFilter("id", "2", false);
+    expect(filters()).toMatchObject([{ key: "id", value: "2", negate: false, disabled: false }]);
+    const { id } = filters()[0];
+
+    state().toggleFieldFilterNegation(id);
+    expect(filters()[0].negate).toBe(true);
+    state().toggleFieldFilterDisabled(id);
+    expect(filters()[0].disabled).toBe(true);
+
+    state().removeFieldFilter(id);
+    expect(filters()).toEqual([]);
+  });
+
+  it("never lists the same column and value twice", () => {
+    state().addFieldFilter("id", "2", false);
+    state().addFieldFilter("id", "2", false);
+    expect(filters()).toHaveLength(1);
+    state().addFieldFilter("id", "2", true); // the opposite flips it
+    expect(filters()).toHaveLength(1);
+    expect(filters()[0].negate).toBe(true);
+    state().addFieldFilter("id", "3", false);
+    expect(filters()).toHaveLength(2);
+  });
+
+  it("clears all of them, and starts empty on a new dataset", () => {
+    state().addFieldFilter("id", "1", false);
+    state().addFieldFilter("when", "x", true);
+    state().clearFieldFilters();
+    expect(filters()).toEqual([]);
+
+    state().addFieldFilter("id", "1", false);
+    state().loadDataset(RAW);
+    expect(filters()).toEqual([]);
+  });
+
+  it("survives switching profile on the same dataset, minus the filters on columns that no longer exist", () => {
+    state().addFieldFilter("id", "1", false);
+    state().addFieldFilter("ghost", "1", false);
+    state().applyProfile(state().activeProfile!);
+    expect(filters().map((f) => f.key)).toEqual(["id"]);
   });
 });
 

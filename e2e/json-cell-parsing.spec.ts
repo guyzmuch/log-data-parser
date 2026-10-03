@@ -5,6 +5,7 @@ import {
   columnSlice,
   configureWizard,
   expectColumnLabels,
+  headerCell,
   loadWithProfile,
   mainHeaders,
   mainRows,
@@ -81,6 +82,58 @@ test.describe("json-cell-pipe.log (ISO timestamp, raw JSON)", () => {
 
     // No row is flagged as a parse error.
     await expect.soft(page.getByText("Invalid parse")).toHaveCount(0);
+  });
+
+  test("Split date and time gives a UTC date column and a UTC time column", async ({ page }) => {
+    await loadWithProfile(page, FILE, CHOICES);
+
+    await clickColumnAction(page, 0, "Split date and time");
+    expect.soft(await mainHeaders(page)).toEqual(["timestamp (date)", "timestamp (time)", "host", "payload", "level"]);
+
+    const rows = await mainRows(page);
+    expect.soft(columnSlice(rows, 0, 2)[0]).toEqual(["2026-01-15", "12:30:00"]);
+    expect.soft(columnSlice(rows, 0, 2)[1]).toEqual(["2026-01-15", "12:30:48.137"]);
+    await expect.soft(page.getByText("Invalid parse")).toHaveCount(0);
+
+    // The new columns say what they come from, and the split is not offered again from them.
+    await expect(headerCell(page, 0)).toContainText("from timestamp · date");
+    await headerCell(page, 0).getByRole("button", { name: /Column options/ }).click();
+    await expect(page.getByRole("menuitem", { name: "Split date and time" })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+  });
+
+  test("the split can be added after Parse as date, from the new date columns, and both coexist", async ({ page }) => {
+    await loadWithProfile(page, FILE, CHOICES);
+
+    await clickColumnAction(page, 0, "Parse as date"); // the source column is hidden now
+    await clickColumnAction(page, 0, "Split date and time"); // offered on the derived column
+    expect.soft(await mainHeaders(page)).toEqual([
+      "timestamp (ISO)",
+      "timestamp (local time)",
+      "timestamp (date)",
+      "timestamp (time)",
+      "host",
+      "payload",
+      "level",
+    ]);
+    const rows = await mainRows(page);
+    expect.soft(columnSlice(rows, 0, 4)[0]).toEqual([
+      "2026-01-15T12:30:00.000Z",
+      "Jan 15, 2026, 12:30:00 PM",
+      "2026-01-15",
+      "12:30:00",
+    ]);
+  });
+
+  test("the date column is made for filtering: one click keeps the rows of that day", async ({ page }) => {
+    await loadWithProfile(page, FILE, CHOICES);
+    await clickColumnAction(page, 0, "Split date and time");
+
+    const cell = page.locator("main tbody tr:not([data-spacer])").first().locator("td").nth(2); // "timestamp (time)"
+    await cell.hover();
+    await cell.getByRole("button", { name: "Filter for value" }).click();
+    await expect(page.getByTestId("filter-pill").first()).toHaveText("timestamp (time): 12:30:00");
+    expect(await mainRows(page)).toHaveLength(1);
   });
 
   test("JSON parsing on the payload column", async ({ page }) => {

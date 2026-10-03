@@ -1,5 +1,6 @@
 import type { ParsedRecord } from "@/core/dataset/types";
 import type { DisplayConfig } from "@/core/profile/types";
+import { enabledFilters, matchesFieldFilters, type FieldFilter } from "@/core/filters/fieldFilters";
 import { matchesSearch } from "@/core/search/matchesSearch";
 import type { ExportScope } from "@/core/export/types";
 
@@ -14,8 +15,8 @@ export interface ExportRows {
 /**
  * Selects which Records to export per scope, and projects them onto the
  * current Visible Fields (in order) — same columns the table shows.
- * "matching-filter" with no active Filter-mode search term behaves as "all"
- * (there's nothing to filter by, so exporting nothing would be surprising).
+ * "matching-filter" keeps the Records that pass the Filter-mode search and every enabled cell filter; with neither
+ * active it behaves as "all" (there's nothing to filter by, so exporting nothing would be surprising).
  * A Parse Error cell exports the same "Invalid parse" text the table shows,
  * not a blank — export stays WYSIWYG with what's on screen.
  * `comments` (by Record index) add a final "comment" column when at least one exported row has one.
@@ -26,6 +27,7 @@ export function buildExportRows(
   scope: ExportScope,
   hiddenRecordIndexes: ReadonlySet<number>,
   comments: ReadonlyMap<number, string> = new Map(),
+  fieldFilters: readonly FieldFilter[] = [],
 ): ExportRows {
   const { visibleFieldKeys, fieldLabels, searchState } = display;
   const header = visibleFieldKeys.map((key) => fieldLabels[key] ?? key);
@@ -35,9 +37,12 @@ export function buildExportRows(
     selected = records.filter((record) => !hiddenRecordIndexes.has(record.index));
   } else if (scope === "matching-filter") {
     const term = searchState?.term ?? "";
-    const filterActive = searchState?.mode === "filter" && term.trim() !== "";
-    if (filterActive) {
-      selected = records.filter((record) => matchesSearch(record, visibleFieldKeys, term));
+    const searchActive = searchState?.mode === "filter" && term.trim() !== "";
+    if (searchActive || enabledFilters(fieldFilters).length > 0) {
+      selected = records.filter(
+        (record) =>
+          matchesFieldFilters(record, fieldFilters) && (!searchActive || matchesSearch(record, visibleFieldKeys, term)),
+      );
     }
   }
 

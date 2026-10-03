@@ -11,7 +11,11 @@ export interface DateDerivedFieldSpec {
   // No "raw" representation: it would just duplicate the source Field's own
   // value as a second column, which is never useful — the source Field is
   // already right there.
-  representation: "iso" | "timezone";
+  //
+  // "utc-date" ("2026-01-15") and "utc-time" ("12:30:48", with ".137" only when there are milliseconds) are the two
+  // halves of the same instant in UTC, as separate columns: handy for filtering and color-coding, which want few
+  // different values per column.
+  representation: "iso" | "timezone" | "utc-date" | "utc-time";
   /** IANA zone (e.g. "Europe/Paris"). Ignored unless representation is "timezone"; omitted there means browser-local. */
   timezone?: IanaTimeZone;
 }

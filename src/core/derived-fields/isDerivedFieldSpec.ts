@@ -14,7 +14,10 @@ export function isDerivedFieldSpec(value: unknown): value is DerivedFieldSpec {
   switch (spec.kind) {
     case "date":
       return (
-        (spec.representation === "iso" || spec.representation === "timezone") &&
+        (spec.representation === "iso" ||
+          spec.representation === "timezone" ||
+          spec.representation === "utc-date" ||
+          spec.representation === "utc-time") &&
         (spec.timezone === undefined || typeof spec.timezone === "string")
       );
     case "unescape":
