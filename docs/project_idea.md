@@ -63,6 +63,7 @@ Posibility to add comment on each data line
 You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
 we can sort the table by column (asc/desc)
 Could we have something simple that learn from previous file name, and if the name of 3 different file are similare, the we proposed the parsing profile that was used most for this type of file name (like format, extension, first line, etc) when i say proposed, I just mean a suggestion of the parsing profile
+only numbers that looks like timpstamps should be parsed as timestamp
 
 
 ## to think over

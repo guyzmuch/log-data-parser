@@ -139,13 +139,17 @@ export async function mainHeaders(page: Page): Promise<string[]> {
   return labels.map(norm);
 }
 
-/** Main data table: the first cell of each row is the row-select checkbox and "#", so it's dropped. */
+/**
+ * Main data table, as many rows as are rendered (the table is windowed, so a long list renders only the
+ * rows near the viewport). The first cell of each row is the row-select checkbox and "#", so it's dropped;
+ * the empty filler cell and the spacer rows are not data.
+ */
 export async function mainRows(page: Page): Promise<string[][]> {
-  const rows = page.locator("main table tbody tr");
+  const rows = page.locator("main table tbody tr:not([data-spacer])");
   const count = await rows.count();
   const result: string[][] = [];
   for (let i = 0; i < count; i++) {
-    result.push((await rows.nth(i).locator("td").allTextContents()).map(norm).slice(1));
+    result.push((await rows.nth(i).locator('td:not([aria-hidden="true"])').allTextContents()).map(norm).slice(1));
   }
   return result;
 }
