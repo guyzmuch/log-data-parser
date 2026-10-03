@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 
@@ -204,4 +205,40 @@ export async function addTimezone(page: Page, columnIndex: number, timezone: str
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Timezone" }).fill(timezone);
   await dialog.getByRole("button", { name: "Add timezone" }).click();
+}
+
+// ---------------------------------------------------------------------------
+// Search, row selection, export and downloads
+// ---------------------------------------------------------------------------
+
+/** Types a search and picks Highlight or Filter mode. An empty term clears the search. */
+export async function searchFor(page: Page, term: string, mode: "Highlight" | "Filter" = "Highlight") {
+  await page.getByPlaceholder("Search visible columns…").fill(term);
+  await page.getByRole("radio", { name: mode }).click();
+}
+
+/** Selects the rows at these positions among the rendered rows (0 = first shown row) and hides them. */
+export async function hideRows(page: Page, positions: number[]) {
+  const checkboxes = page.getByRole("checkbox", { name: /^Select row/ });
+  for (const position of positions) await checkboxes.nth(position).click();
+  await page.getByRole("button", { name: "Hide selected" }).click();
+}
+
+export async function chooseExportScope(page: Page, label: "All records" | "Excluding hidden" | "Matching filter") {
+  await page.getByRole("button", { name: "Export scope" }).click();
+  await page.getByRole("menuitemradio", { name: new RegExp(label) }).click();
+}
+
+/** Runs `trigger` (which must start a download) and returns the downloaded file's text. */
+export async function captureDownload(page: Page, trigger: () => Promise<void>): Promise<string> {
+  const downloadPromise = page.waitForEvent("download");
+  await trigger();
+  const download = await downloadPromise;
+  return readFile(await download.path(), "utf8");
+}
+
+/** Clicks "Export CSV" and returns the downloaded file's lines (CSV rows are \r\n-separated). */
+export async function exportCsvLines(page: Page): Promise<string[]> {
+  const content = await captureDownload(page, () => page.getByRole("button", { name: /^Export CSV/ }).click());
+  return content.split("\r\n");
 }
