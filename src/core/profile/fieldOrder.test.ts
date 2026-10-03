@@ -7,17 +7,18 @@ function display(overrides: Partial<DisplayConfig> = {}): DisplayConfig {
 }
 
 describe("naturalFieldOrder", () => {
-  it("lists base columns, then Derived Fields in the order they were added", () => {
+  it("lists each base column followed by its Derived Fields, in the order they were added", () => {
     const result = naturalFieldOrder(
       ["a", "b"],
       display({
         derivedFieldSelections: [
           { kind: "unescape", sourceFieldKey: "b" },
           { kind: "date", sourceFieldKey: "a", representation: "iso" },
+          { kind: "date", sourceFieldKey: "a", representation: "timezone" },
         ],
       }),
     );
-    expect(result).toEqual(["a", "b", "b (unescaped)", "a (ISO)"]);
+    expect(result).toEqual(["a", "a (ISO)", "a (local time)", "b", "b (unescaped)"]);
   });
 });
 

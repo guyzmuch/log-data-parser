@@ -166,7 +166,9 @@ describe("Derived Field actions", () => {
   it("adds the ISO and local-time pair and shows both columns", () => {
     state().addDefaultDateDerivedFields("when");
     const display = state().activeProfile!.display;
-    expect(display.visibleFieldKeys).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)"]);
+    // The new columns sit right after their source, and the raw source is hidden.
+    expect(display.fieldOrder).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)"]);
+    expect(display.visibleFieldKeys).toEqual(["id", "payload", "when (ISO)", "when (local time)"]);
     expect(state().records[0].fields.map((f) => f.key)).toEqual([
       "id",
       "payload",
@@ -188,8 +190,18 @@ describe("Derived Field actions", () => {
 
   it("adds one json-key spec per discovered key", () => {
     state().addJsonKeyDerivedFields("payload");
-    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "payload", "when", "payload.user", "payload.n"]);
+    expect(state().activeProfile!.display.visibleFieldKeys).toEqual(["id", "payload.user", "payload.n", "when"]);
     expect(state().records[1].fields.find((f) => f.key === "payload.user")!.value).toBe("bob");
+  });
+
+  it("hides the source only the first time it gets a Derived Field, and keeps new ones next to its others", () => {
+    state().addDefaultDateDerivedFields("when");
+    state().toggleFieldVisibility("when"); // the user brings the raw column back
+    state().addTimezoneDerivedField("when", "Europe/Paris");
+
+    const display = state().activeProfile!.display;
+    expect(display.fieldOrder).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)", "when (Europe/Paris)"]);
+    expect(display.visibleFieldKeys).toContain("when");
   });
 
   it("does nothing for a column with no JSON in it", () => {
@@ -317,11 +329,11 @@ describe("column order and visibility (columns popover)", () => {
     expect(visible()).toEqual(["id", "when"]);
   });
 
-  it("new Derived Fields go at the end of the order and are shown", () => {
+  it("new Derived Fields go right after their source, shown, and the source is hidden", () => {
     state().toggleFieldVisibility("payload");
-    state().addDefaultDateDerivedFields("when");
-    expect(order()).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)"]);
-    expect(visible()).toEqual(["id", "when", "when (ISO)", "when (local time)"]);
+    state().addDefaultDateDerivedFields("id");
+    expect(order()).toEqual(["id", "id (ISO)", "id (local time)", "payload", "when"]);
+    expect(visible()).toEqual(["id (ISO)", "id (local time)", "when"]);
   });
 
   it("Show all shows every column, each in its place", () => {
@@ -329,7 +341,7 @@ describe("column order and visibility (columns popover)", () => {
     state().toggleFieldVisibility("id");
     state().toggleFieldVisibility("when (ISO)");
     state().moveFieldBefore("when", "payload");
-    expect(visible()).toEqual(["when", "payload", "when (local time)"]);
+    expect(visible()).toEqual(["payload", "when (local time)"]);
 
     state().showAllFields();
     expect(visible()).toEqual(["id", "when", "payload", "when (ISO)", "when (local time)"]);
@@ -347,7 +359,7 @@ describe("column order and visibility (columns popover)", () => {
     expect(visible()).toEqual(["when", "id", "payload"]);
   });
 
-  it("Reset order puts the columns back in natural order: base first, then derived as added", () => {
+  it("Reset order puts the columns back in natural order: each base column followed by its derived ones", () => {
     state().addDefaultDateDerivedFields("when");
     state().addUnescapeDerivedField("payload");
     state().toggleFieldVisibility("id");
@@ -355,8 +367,8 @@ describe("column order and visibility (columns popover)", () => {
     state().moveFieldBefore("payload (unescaped)", "payload");
 
     state().resetFieldOrder();
-    expect(order()).toEqual(["id", "payload", "when", "when (ISO)", "when (local time)", "payload (unescaped)"]);
-    expect(visible()).toEqual(["payload", "when", "when (ISO)", "when (local time)", "payload (unescaped)"]);
+    expect(order()).toEqual(["id", "payload", "payload (unescaped)", "when", "when (ISO)", "when (local time)"]);
+    expect(visible()).toEqual(["payload (unescaped)", "when (ISO)", "when (local time)"]);
   });
 
   it("a Profile saved before the order existed gets one when applied: shown columns first, then the rest", () => {
@@ -369,6 +381,95 @@ describe("column order and visibility (columns popover)", () => {
     expect(visible()).toEqual(["when", "id"]);
     state().toggleFieldVisibility("payload");
     expect(visible()).toEqual(["when", "id", "payload"]);
+  });
+});
+
+describe("record comments", () => {
+  beforeEach(() => {
+    load();
+  });
+
+  it("keeps the comment column off by default, and off again for a new dataset", () => {
+    expect(state().showComments).toBe(false);
+    state().setShowComments(true);
+    expect(state().showComments).toBe(true);
+    state().loadDataset(RAW);
+    expect(state().showComments).toBe(false);
+  });
+
+  it("sets, trims and removes a comment", () => {
+    state().setRecordComment(1, "  odd one  ");
+    expect(state().recordComments.get(1)).toBe("odd one");
+    state().setRecordComment(1, "   ");
+    expect(state().recordComments.has(1)).toBe(false);
+  });
+
+  it("survives switching profile on the same dataset, but not loading a new dataset", () => {
+    state().setRecordComment(1, "keep me"); // with a header row the first data record is line 1
+    state().applyProfile(state().activeProfile!);
+    expect(state().recordComments.get(1)).toBe("keep me");
+
+    state().loadDataset(RAW);
+    expect(state().recordComments.size).toBe(0);
+  });
+
+  it("drops comments on records the new parse doesn't have", () => {
+    state().setRecordComment(2, "last row");
+    const profile = state().activeProfile!;
+    state().loadDataset("id | payload | when\n1 | a | b");
+    state().setRecordComment(2, "last row");
+    state().applyProfile(profile);
+    expect(state().recordComments.size).toBe(0);
+  });
+});
+
+describe("second-line columns", () => {
+  const display = () => state().activeProfile!.display;
+
+  beforeEach(() => {
+    load();
+  });
+
+  it("flags and unflags a column, keeping it in the visible list", () => {
+    state().toggleSecondLine("payload");
+    expect(display().secondLineKeys).toEqual(["payload"]);
+    expect(display().visibleFieldKeys).toEqual(["id", "payload", "when"]);
+
+    state().toggleSecondLine("payload");
+    expect(display().secondLineKeys).toBeUndefined();
+  });
+
+  it("belongs to the view: each view keeps its own second-line columns", () => {
+    state().toggleSecondLine("payload");
+    state().addView("Flat"); // starts as a copy, so payload is on a second line here too
+    state().toggleSecondLine("payload");
+    expect(display().secondLineKeys).toBeUndefined();
+
+    const [first, second] = state().activeProfile!.views!;
+    state().switchView(first.id);
+    expect(display().secondLineKeys).toEqual(["payload"]);
+    state().switchView(second.id);
+    expect(display().secondLineKeys).toBeUndefined();
+  });
+
+  it("is saved with the profile and restored when it is applied", () => {
+    state().toggleSecondLine("payload");
+    state().saveCurrentView();
+
+    const saved = listProfiles()[0];
+    expect(saved.views![0].secondLineKeys).toEqual(["payload"]);
+
+    state().loadDataset(RAW);
+    state().applyProfile(saved);
+    expect(display().secondLineKeys).toEqual(["payload"]);
+  });
+
+  it("ignores keys that no longer exist when applied to another dataset", () => {
+    state().toggleSecondLine("payload");
+    const profile = state().activeProfile!;
+    state().loadDataset("id | other\n1 | x");
+    state().applyProfile(profile);
+    expect(display().secondLineKeys).toBeUndefined();
   });
 });
 

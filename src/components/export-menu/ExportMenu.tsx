@@ -28,12 +28,13 @@ export function ExportMenu() {
   const records = useAppStore((s) => s.records);
   const activeProfile = useAppStore((s) => s.activeProfile);
   const hiddenRecordIndexes = useAppStore((s) => s.hiddenRecordIndexes);
+  const recordComments = useAppStore((s) => s.recordComments);
 
   if (!activeProfile) return null;
 
   const { searchState } = activeProfile.display;
   const filterActive = searchState?.mode === "filter" && (searchState.term.trim() ?? "") !== "";
-  const { header, rows } = buildExportRows(records, activeProfile.display, scope, hiddenRecordIndexes);
+  const { header, rows } = buildExportRows(records, activeProfile.display, scope, hiddenRecordIndexes, recordComments);
 
   function handleExport() {
     const blob = toCSVBlob(header, rows);

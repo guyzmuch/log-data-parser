@@ -7,8 +7,13 @@ export const DEFAULT_VIEW_NAME = "Default";
 
 /** The columns of a Profile's live display, as a view stores them. */
 function liveColumns(profile: Profile): ViewColumns {
-  const { visibleFieldKeys, fieldOrder } = profile.display;
-  return { visibleFieldKeys: [...visibleFieldKeys], ...(fieldOrder ? { fieldOrder: [...fieldOrder] } : {}) };
+  const { visibleFieldKeys, fieldOrder, secondLineKeys } = profile.display;
+  // secondLineKeys is always present (possibly undefined) so that spreading this over a view or a display clears an old value.
+  return {
+    visibleFieldKeys: [...visibleFieldKeys],
+    ...(fieldOrder ? { fieldOrder: [...fieldOrder] } : {}),
+    secondLineKeys: secondLineKeys?.length ? [...secondLineKeys] : undefined,
+  };
 }
 
 /** A Profile's views, with the active one picked. A Profile without views gets a "Default" one made from its display. */
@@ -31,11 +36,16 @@ export function syncActiveView(profile: Profile): Profile {
 
 /** `view`'s columns made consistent with the Fields the Profile's display actually has. */
 function reconcileColumns(profile: Profile, view: ViewColumns, baseFieldNames: string[]): ViewColumns {
-  const { visibleFieldKeys, fieldOrder } = reconcileDisplay(
-    { ...profile.display, visibleFieldKeys: view.visibleFieldKeys, fieldOrder: view.fieldOrder },
+  const { visibleFieldKeys, fieldOrder, secondLineKeys } = reconcileDisplay(
+    {
+      ...profile.display,
+      visibleFieldKeys: view.visibleFieldKeys,
+      fieldOrder: view.fieldOrder,
+      secondLineKeys: view.secondLineKeys,
+    },
     baseFieldNames,
   );
-  return { visibleFieldKeys, fieldOrder };
+  return { visibleFieldKeys, fieldOrder, secondLineKeys };
 }
 
 /**
@@ -50,7 +60,12 @@ export function reconcileViews(profile: Profile, baseFieldNames: string[]): Prof
     ...profile,
     views: reconciled,
     activeViewId,
-    display: { ...profile.display, visibleFieldKeys: active.visibleFieldKeys, fieldOrder: active.fieldOrder },
+    display: {
+      ...profile.display,
+      visibleFieldKeys: active.visibleFieldKeys,
+      fieldOrder: active.fieldOrder,
+      secondLineKeys: active.secondLineKeys,
+    },
   };
 }
 
@@ -71,7 +86,10 @@ export function switchView(current: Profile, viewId: string, baseFieldNames: str
 /** Adds a view that starts as a copy of the columns on screen, and makes it the active one. */
 export function addView(profile: Profile, id: string, name: string, baseFieldNames: string[]): Profile {
   const synced = syncActiveView(profile);
-  const columns = { visibleFieldKeys: [...profile.display.visibleFieldKeys], fieldOrder: currentFieldOrder(profile.display, baseFieldNames) };
+  const columns: ViewColumns = {
+    ...liveColumns(profile),
+    fieldOrder: currentFieldOrder(profile.display, baseFieldNames),
+  };
   return {
     ...synced,
     activeViewId: id,

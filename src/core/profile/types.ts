@@ -21,6 +21,11 @@ export interface DisplayConfig {
    * Optional only for Profiles saved before this existed; reconcileDisplay fills it in on apply.
    */
   fieldOrder?: string[];
+  /**
+   * Shown Field keys displayed on their own line under the row (full width) instead of as a column,
+   * in column order. Part of a view: the active view's list is mirrored here.
+   */
+  secondLineKeys?: string[];
   fieldLabels: Record<string, string>;
   /** Column widths in px the user dragged to, by Field key. A column without an entry gets an automatic width. Shared by all views. */
   columnWidths?: Record<string, number>;
@@ -32,6 +37,7 @@ export interface DisplayConfig {
 export interface ViewColumns {
   visibleFieldKeys: string[];
   fieldOrder?: string[];
+  secondLineKeys?: string[];
 }
 
 /**

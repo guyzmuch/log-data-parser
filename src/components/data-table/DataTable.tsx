@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { Fragment, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ColumnHeader } from "@/components/data-table/ColumnHeader";
 import { useDetectedPatterns } from "@/components/data-table/useDetectedPatterns";
 import { useVisibleRecords } from "@/components/data-table/useVisibleRecords";
 import { useWindowedRows } from "@/components/data-table/useWindowedRows";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { maxValueLengths } from "@/core/dataset/valueLengths";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
@@ -47,6 +48,8 @@ const DERIVED_CELL = "bg-muted/40";
  * doesn't depend on which rows are currently rendered (see COLUMN_*_CH).
  */
 const ROW_HEIGHT = 36;
+/** Height of the full-width line a "second line" column gets under each row: up to three lines of text, then "…". */
+const EXTRA_ROW_HEIGHT = 68;
 /** Rows rendered above and below the viewport, so fast scrolling doesn't flash blank space. */
 const OVERSCAN_ROWS = 12;
 /** Column widths come from the longest value (in monospace characters), within these limits. Longer values are cut off with "…". */
@@ -99,6 +102,59 @@ function ResizeHandle({ fieldKey, label }: { fieldKey: string; label: string }) 
   );
 }
 
+/** Width of the comment column. */
+const COMMENT_COLUMN_WIDTH = "18rem";
+
+/** The user's remark on a record: click to type, Enter or leaving the box saves, Escape cancels. Exported as an extra CSV column. */
+function CommentCell({ index }: { index: number }) {
+  const comment = useAppStore((s) => s.recordComments.get(index) ?? "");
+  const setRecordComment = useAppStore((s) => s.setRecordComment);
+  const [draft, setDraft] = useState<string | null>(null);
+  const finished = useRef(false);
+
+  function finish(save: boolean) {
+    if (finished.current) return;
+    finished.current = true;
+    if (save && draft !== null) setRecordComment(index, draft);
+    setDraft(null);
+  }
+
+  return (
+    <TableCell data-comment="true" className="px-2 py-0" onClick={(event) => event.stopPropagation()}>
+      {draft === null ? (
+        <button
+          type="button"
+          aria-label={comment ? `Edit comment on row ${index}` : `Add comment on row ${index}`}
+          title={comment || undefined}
+          onClick={() => {
+            finished.current = false;
+            setDraft(comment);
+          }}
+          className={cn(
+            "block h-7 w-full truncate px-1 text-left outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring",
+            comment ? "font-sans" : "text-muted-foreground/60",
+          )}
+        >
+          {comment || "Add comment…"}
+        </button>
+      ) : (
+        <Input
+          autoFocus
+          aria-label={`Comment on row ${index}`}
+          className="h-7"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") finish(true);
+            else if (event.key === "Escape") finish(false);
+          }}
+          onBlur={() => finish(true)}
+        />
+      )}
+    </TableCell>
+  );
+}
+
 function Spacer({ height, columns }: { height: number; columns: number }) {
   return (
     <tr aria-hidden="true" data-spacer="true">
@@ -111,6 +167,7 @@ export function DataTable() {
   const records = useAppStore((s) => s.records);
   const activeProfile = useAppStore((s) => s.activeProfile);
   const selectedRecordIndexes = useAppStore((s) => s.selectedRecordIndexes);
+  const showComments = useAppStore((s) => s.showComments);
   const selectRecord = useAppStore((s) => s.selectRecord);
   const selectAllVisible = useAppStore((s) => s.selectAllVisible);
   const deselectAllVisible = useAppStore((s) => s.deselectAllVisible);
@@ -118,7 +175,14 @@ export function DataTable() {
   const { shownRecords, visibleRecords, visibleIndexesInOrder, ordinalByIndex, visibleSelectedCount } =
     useVisibleRecords();
   const valueLengths = useMemo(() => maxValueLengths(records), [records]);
-  const { scrollRef, onScroll, range } = useWindowedRows(visibleRecords.length, ROW_HEIGHT, OVERSCAN_ROWS);
+  // Shown columns flagged "second line" leave the header and the row; each gets its own full-width line
+  // under the row instead. Every record is therefore the same height: the row plus one line per flagged column.
+  const flagged = new Set(activeProfile?.display.secondLineKeys ?? []);
+  const shownKeys = activeProfile?.display.visibleFieldKeys ?? [];
+  const extraKeys = shownKeys.filter((key) => flagged.has(key));
+  const columnKeys = shownKeys.filter((key) => !flagged.has(key));
+  const recordHeight = ROW_HEIGHT + extraKeys.length * EXTRA_ROW_HEIGHT;
+  const { scrollRef, onScroll, range } = useWindowedRows(visibleRecords.length, recordHeight, OVERSCAN_ROWS);
 
   if (!activeProfile || records.length === 0) {
     return <p className="px-5 text-sm text-muted-foreground">No data parsed yet.</p>;
@@ -176,7 +240,9 @@ export function DataTable() {
   const end = Math.min(Math.max(range.end, start), visibleRecords.length);
   const windowRecords = visibleRecords.slice(start, end);
   // The select/"#" column, the data columns, and an empty filler column that soaks up spare width.
-  const columnCount = visibleFieldKeys.length + 2;
+  const commentColumns = showComments ? 1 : 0;
+  const columnCount = columnKeys.length + 2 + commentColumns;
+  const rowsPerRecord = 1 + extraKeys.length;
 
   return (
     // The box is the table's only scroller (the shadcn Table wraps itself in an overflow-x-auto
@@ -190,16 +256,17 @@ export function DataTable() {
       {/* Fixed layout + explicit column widths: the browser can't size columns from rows it hasn't rendered.
           `w-px min-w-full` makes the table as wide as its columns need, and at least as wide as the box;
           the last column has no width, so any spare room goes there instead of stretching the others. */}
-      <Table className="w-px min-w-full table-fixed text-[0.8125rem]" aria-rowcount={visibleRecords.length + 1}>
+      <Table className="w-px min-w-full table-fixed text-[0.8125rem]" aria-rowcount={visibleRecords.length * rowsPerRecord + 1}>
         <colgroup>
           <col style={{ width: LEADING_COLUMN_WIDTH }} />
-          {visibleFieldKeys.map((key) => (
+          {columnKeys.map((key) => (
             <col
               key={key}
               className="font-mono text-[0.8125rem]"
               style={{ width: columnWidths?.[key] ?? `calc(${columnChars(key)}ch + ${CELL_PADDING})` }}
             />
           ))}
+          {showComments && <col style={{ width: COMMENT_COLUMN_WIDTH }} />}
           <col />
         </colgroup>
         <TableHeader>
@@ -216,7 +283,7 @@ export function DataTable() {
                 <span className="text-xs font-medium text-muted-foreground">#</span>
               </div>
             </TableHead>
-            {visibleFieldKeys.map((key, position) => (
+            {columnKeys.map((key, position) => (
               <TableHead
                 key={key}
                 className={cn("sticky top-0 z-10 overflow-hidden border-b bg-muted px-3", derivedByKey.has(key) && DERIVED_HEAD)}
@@ -225,23 +292,31 @@ export function DataTable() {
                   fieldKey={key}
                   detected={detectedByField[key] ?? []}
                   isFirst={position === 0}
-                  isLast={position === visibleFieldKeys.length - 1}
+                  isLast={position === columnKeys.length - 1}
                 />
                 <ResizeHandle fieldKey={key} label={labelOf(key)} />
               </TableHead>
             ))}
+            {showComments && (
+              <TableHead className="sticky top-0 z-10 border-b bg-muted px-3 text-xs font-medium text-muted-foreground">
+                Comment
+              </TableHead>
+            )}
             <TableHead aria-hidden="true" className="sticky top-0 z-10 border-b bg-muted p-0" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {start > 0 && <Spacer height={start * ROW_HEIGHT} columns={columnCount} />}
-          {windowRecords.map((record, offset) => (
+          {start > 0 && <Spacer height={start * recordHeight} columns={columnCount} />}
+          {windowRecords.map((record, offset) => {
+            const selected = selectedRecordIndexes.has(record.index) ? "selected" : undefined;
+            const firstRowIndex = (start + offset) * rowsPerRecord + 2;
+            return (
+            <Fragment key={record.index}>
             <TableRow
-              key={record.index}
-              aria-rowindex={start + offset + 2}
-              data-state={selectedRecordIndexes.has(record.index) ? "selected" : undefined}
+              aria-rowindex={firstRowIndex}
+              data-state={selected}
               onClick={(event) => handleRowClick(event, record.index)}
-              className="h-9 cursor-pointer"
+              className={cn("h-9 cursor-pointer", extraKeys.length > 0 && "border-b-0")}
             >
               <TableCell className="py-0">
                 <div className="flex items-center gap-2 pl-1">
@@ -255,7 +330,7 @@ export function DataTable() {
                   </span>
                 </div>
               </TableCell>
-              {visibleFieldKeys.map((key) => {
+              {columnKeys.map((key) => {
                 const field = record.fields.find((f) => f.key === key);
                 const cellClass = cn("overflow-hidden px-3 py-0 font-mono text-ellipsis", derivedByKey.has(key) && DERIVED_CELL);
                 if (field?.parseError) {
@@ -272,10 +347,40 @@ export function DataTable() {
                   </TableCell>
                 );
               })}
+              {showComments && <CommentCell index={record.index} />}
               <TableCell aria-hidden="true" className="p-0" />
             </TableRow>
-          ))}
-          {end < visibleRecords.length && <Spacer height={(visibleRecords.length - end) * ROW_HEIGHT} columns={columnCount} />}
+            {extraKeys.map((key, j) => {
+              const field = record.fields.find((f) => f.key === key);
+              const value = field?.parseError ? "Invalid parse" : (field?.value ?? "");
+              return (
+                <TableRow
+                  key={key}
+                  data-extra="true"
+                  aria-rowindex={firstRowIndex + 1 + j}
+                  data-state={selected}
+                  onClick={(event) => handleRowClick(event, record.index)}
+                  style={{ height: EXTRA_ROW_HEIGHT }}
+                  className={cn("cursor-pointer", j < extraKeys.length - 1 && "border-b-0")}
+                >
+                  <TableCell className="p-0" />
+                  <TableCell
+                    colSpan={columnKeys.length + 1 + commentColumns}
+                    title={value}
+                    className={cn("overflow-hidden px-3 pt-1 pb-0 align-top whitespace-normal", derivedByKey.has(key) && DERIVED_CELL)}
+                  >
+                    <div className={cn("line-clamp-3 font-mono leading-5 break-words", field?.parseError && "text-destructive")}>
+                      <span className="mr-2 font-sans text-xs text-muted-foreground select-none">{labelOf(key)}</span>
+                      {!field?.parseError && mode === "highlight" ? highlightMatches(value, term) : value}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            </Fragment>
+            );
+          })}
+          {end < visibleRecords.length && <Spacer height={(visibleRecords.length - end) * recordHeight} columns={columnCount} />}
         </TableBody>
       </Table>
     </div>

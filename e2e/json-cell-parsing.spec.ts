@@ -57,18 +57,27 @@ test.describe("json-cell-pipe.log (ISO timestamp, raw JSON)", () => {
     await loadWithProfile(page, FILE, CHOICES);
 
     await clickColumnAction(page, 0, "Parse as date");
-    expect.soft(await mainHeaders(page)).toEqual([...BASE_COLUMNS, "timestamp (ISO)", "timestamp (local time)"]);
+    // The new columns replace the raw one, right where it was.
+    expect.soft(await mainHeaders(page)).toEqual(["timestamp (ISO)", "timestamp (local time)", "host", "payload", "level"]);
 
     let rows = await mainRows(page);
-    expect.soft(columnSlice(rows, 4, 2)[0]).toEqual(["2026-01-15T12:30:00.000Z", "Jan 15, 2026, 12:30:00 PM"]);
-    expect.soft(columnSlice(rows, 4, 2)[1]).toEqual(["2026-01-15T12:30:48.137Z", "Jan 15, 2026, 12:30:48 PM"]);
+    expect.soft(columnSlice(rows, 0, 2)[0]).toEqual(["2026-01-15T12:30:00.000Z", "Jan 15, 2026, 12:30:00 PM"]);
+    expect.soft(columnSlice(rows, 0, 2)[1]).toEqual(["2026-01-15T12:30:48.137Z", "Jan 15, 2026, 12:30:48 PM"]);
 
+    // The timezone action is on the derived columns too, since the source column is hidden.
     await addTimezone(page, 0, "Europe/Paris");
-    expect.soft((await mainHeaders(page)).at(-1)).toBe("timestamp (Europe/Paris)");
+    expect.soft(await mainHeaders(page)).toEqual([
+      "timestamp (ISO)",
+      "timestamp (local time)",
+      "timestamp (Europe/Paris)",
+      "host",
+      "payload",
+      "level",
+    ]);
 
     rows = await mainRows(page);
-    expect.soft(rows[0][6]).toBe("Jan 15, 2026, 1:30:00 PM");
-    expect.soft(rows[1][6]).toBe("Jan 15, 2026, 1:30:48 PM");
+    expect.soft(rows[0][2]).toBe("Jan 15, 2026, 1:30:00 PM");
+    expect.soft(rows[1][2]).toBe("Jan 15, 2026, 1:30:48 PM");
 
     // No row is flagged as a parse error.
     await expect.soft(page.getByText("Invalid parse")).toHaveCount(0);
@@ -78,10 +87,17 @@ test.describe("json-cell-pipe.log (ISO timestamp, raw JSON)", () => {
     await loadWithProfile(page, FILE, CHOICES);
 
     await clickColumnAction(page, 2, "Extract JSON keys");
-    expect.soft(await mainHeaders(page)).toEqual([...BASE_COLUMNS, "payload.user", "payload.action", "payload.count"]);
+    expect.soft(await mainHeaders(page)).toEqual([
+      "timestamp",
+      "host",
+      "payload.user",
+      "payload.action",
+      "payload.count",
+      "level",
+    ]);
 
     const rows = await mainRows(page);
-    const json = columnSlice(rows, 4, 3);
+    const json = columnSlice(rows, 2, 3);
     expect.soft(json[0]).toEqual(["alice", "login", "3"]);
     expect.soft(json[1]).toEqual(["bob", "logout", "12"]);
     expect.soft(json[7]).toEqual(["heidi", "search", "42"]);
@@ -118,8 +134,8 @@ test.describe("json-cell-stringified-pipe.log (epoch timestamp, stringified JSON
 
     await clickColumnAction(page, 0, "Parse as date");
     const rows = await mainRows(page);
-    expect.soft(columnSlice(rows, 4, 2)[0]).toEqual(["2026-01-15T12:30:00.000Z", "Jan 15, 2026, 12:30:00 PM"]);
-    expect.soft(columnSlice(rows, 4, 2)[7]).toEqual(["2026-01-15T12:38:38.000Z", "Jan 15, 2026, 12:38:38 PM"]);
+    expect.soft(columnSlice(rows, 0, 2)[0]).toEqual(["2026-01-15T12:30:00.000Z", "Jan 15, 2026, 12:30:00 PM"]);
+    expect.soft(columnSlice(rows, 0, 2)[7]).toEqual(["2026-01-15T12:38:38.000Z", "Jan 15, 2026, 12:38:38 PM"]);
     await expect.soft(page.getByText("Invalid parse")).toHaveCount(0);
   });
 
@@ -127,11 +143,11 @@ test.describe("json-cell-stringified-pipe.log (epoch timestamp, stringified JSON
     await loadWithProfile(page, FILE, CHOICES);
 
     await clickColumnAction(page, 2, "Strip escape characters");
-    expect.soft((await mainHeaders(page)).at(-1)).toBe("payload (unescaped)");
+    expect.soft(await mainHeaders(page)).toEqual(["timestamp", "host", "payload (unescaped)", "level"]);
 
     const rows = await mainRows(page);
-    expect.soft(rows[0][4]).toBe('{"user":"alice","action":"login","count":3}');
-    expect.soft(rows[7][4]).toBe('{"user":"heidi","action":"search","count":42}');
+    expect.soft(rows[0][2]).toBe('{"user":"alice","action":"login","count":3}');
+    expect.soft(rows[7][2]).toBe('{"user":"heidi","action":"search","count":42}');
   });
 
   // A stringified-JSON column is only useful if the user can still pull its keys out. "Extract JSON keys"
@@ -140,10 +156,17 @@ test.describe("json-cell-stringified-pipe.log (epoch timestamp, stringified JSON
     await loadWithProfile(page, FILE, CHOICES);
 
     await clickColumnAction(page, 2, "Extract JSON keys");
-    expect.soft(await mainHeaders(page)).toEqual([...BASE_COLUMNS, "payload.user", "payload.action", "payload.count"]);
+    expect.soft(await mainHeaders(page)).toEqual([
+      "timestamp",
+      "host",
+      "payload.user",
+      "payload.action",
+      "payload.count",
+      "level",
+    ]);
 
     const rows = await mainRows(page);
-    expect.soft(columnSlice(rows, 4, 3)[0]).toEqual(["alice", "login", "3"]);
+    expect.soft(columnSlice(rows, 2, 3)[0]).toEqual(["alice", "login", "3"]);
   });
 });
 
@@ -159,8 +182,8 @@ test("Strip escape characters decodes \\\" and \\\\ in a pasted column", async (
 
   await clickColumnAction(page, 1, "Strip escape characters");
   const rows = await mainRows(page);
-  expect.soft(rows[0][2]).toBe('He said "hi"');
-  expect.soft(rows[1][2]).toBe("path C:\\temp\\file");
+  expect.soft(rows[0][1]).toBe('He said "hi"');
+  expect.soft(rows[1][1]).toBe("path C:\\temp\\file");
 });
 
 // ---------------------------------------------------------------------------

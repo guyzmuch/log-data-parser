@@ -43,10 +43,10 @@ only numbers that looks like timpstamps should be parsed as detec
 option to trim all the cell (but not by default, because it might be usefull)
 All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
 we sohuld be able to resize the column of the array, and data will have elipse at the end
-
 when parsing a column in a certain way, add the new column after the "parent" column instead of at the end of the column, and unmark the parent column to hide it (because by default, we would only want the parsed data, not the raw one)
 You could also display entry in 2 lines
 Posibility to add comment on each data line
+
 
 
 like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry

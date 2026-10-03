@@ -151,11 +151,11 @@ export async function mainHeaders(page: Page): Promise<string[]> {
  * the empty filler cell and the spacer rows are not data.
  */
 export async function mainRows(page: Page): Promise<string[][]> {
-  const rows = page.locator("main table tbody tr:not([data-spacer])");
+  const rows = page.locator("main table tbody tr:not([data-spacer]):not([data-extra])");
   const count = await rows.count();
   const result: string[][] = [];
   for (let i = 0; i < count; i++) {
-    result.push((await rows.nth(i).locator('td:not([aria-hidden="true"])').allTextContents()).map(norm).slice(1));
+    result.push((await rows.nth(i).locator('td:not([aria-hidden="true"]):not([data-comment])').allTextContents()).map(norm).slice(1));
   }
   return result;
 }

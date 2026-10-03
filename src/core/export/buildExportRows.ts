@@ -3,6 +3,9 @@ import type { DisplayConfig } from "@/core/profile/types";
 import { matchesSearch } from "@/core/search/matchesSearch";
 import type { ExportScope } from "@/core/export/types";
 
+/** Header of the extra column holding the user's comments. */
+export const COMMENT_COLUMN_NAME = "comment";
+
 export interface ExportRows {
   header: string[];
   rows: string[][];
@@ -15,12 +18,14 @@ export interface ExportRows {
  * (there's nothing to filter by, so exporting nothing would be surprising).
  * A Parse Error cell exports the same "Invalid parse" text the table shows,
  * not a blank — export stays WYSIWYG with what's on screen.
+ * `comments` (by Record index) add a final "comment" column when at least one exported row has one.
  */
 export function buildExportRows(
   records: ParsedRecord[],
   display: DisplayConfig,
   scope: ExportScope,
   hiddenRecordIndexes: ReadonlySet<number>,
+  comments: ReadonlyMap<number, string> = new Map(),
 ): ExportRows {
   const { visibleFieldKeys, fieldLabels, searchState } = display;
   const header = visibleFieldKeys.map((key) => fieldLabels[key] ?? key);
@@ -43,6 +48,14 @@ export function buildExportRows(
       return field?.value ?? "";
     }),
   );
+
+  // The user's comments become one extra last column, only when an exported row has one.
+  if (selected.some((record) => comments.get(record.index))) {
+    let name = COMMENT_COLUMN_NAME;
+    while (header.includes(name)) name += " (note)";
+    header.push(name);
+    selected.forEach((record, i) => rows[i].push(comments.get(record.index) ?? ""));
+  }
 
   return { header, rows };
 }

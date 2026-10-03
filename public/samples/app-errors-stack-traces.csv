@@ -1,0 +1,34 @@
+timestamp,level,service,host,request_id,message,details,stack_trace
+2026-01-15T12:30:00.120Z,ERROR,payment-api,pay-01,req-7f3a91,"Payment authorization failed for order 48213","Card gateway answered 502 after 3 retries (backoff 200ms, 400ms, 800ms). Customer 90412 was charged nothing; the order was kept in state PENDING_PAYMENT and a retry job was scheduled for 12:35. Gateway request id gw-5521-aa. The same gateway had 14 similar failures in the last 10 minutes, all from the eu-west-1 region.","com.shop.payment.GatewayException: Bad gateway (502) while calling https://gateway.example.com/v2/authorize
+	at com.shop.payment.GatewayClient.authorize(GatewayClient.java:142)
+	at com.shop.payment.PaymentService.charge(PaymentService.java:88)
+	at com.shop.payment.PaymentController.pay(PaymentController.java:57)
+	at jdk.internal.reflect.GeneratedMethodAccessor112.invoke(Unknown Source)
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1067)
+Caused by: java.net.SocketTimeoutException: Read timed out
+	at java.base/java.net.SocketInputStream.socketRead0(Native Method)
+	at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:478)
+	at com.shop.payment.GatewayClient.send(GatewayClient.java:201)
+	... 5 more"
+2026-01-15T12:30:04.870Z,INFO,catalog-api,cat-02,req-2c81d0,"Search served from cache","Query ""running shoes"" returned 24 results in 3 ms (cache hit, ttl 60s).",
+2026-01-15T12:30:11.455Z,WARN,auth-service,auth-01,req-91be44,"Slow password hash","Hashing took 912 ms (threshold 500 ms). CPU steal on the host was 18% during the call, which is the likely cause.",
+2026-01-15T12:31:02.003Z,ERROR,orders-worker,wrk-03,req-ab12ce,"Unhandled exception while building invoice","Invoice 2026-000881 for customer 31877 could not be rendered. The order has 41 lines and one of them references a product (sku TSH-BLU-XL) that was deleted from the catalog yesterday. The job will not be retried automatically; it needs a manual fix of the order line.","java.lang.NullPointerException: Cannot invoke ""com.shop.catalog.Product.getName()"" because ""product"" is null
+	at com.shop.invoice.InvoiceLineMapper.toLine(InvoiceLineMapper.java:63)
+	at com.shop.invoice.InvoiceBuilder.lambda$build$0(InvoiceBuilder.java:41)
+	at java.base/java.util.stream.ReferencePipeline$3$1.accept(ReferencePipeline.java:197)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1625)
+	at com.shop.invoice.InvoiceBuilder.build(InvoiceBuilder.java:41)
+	at com.shop.invoice.InvoiceJob.run(InvoiceJob.java:29)
+	at com.shop.jobs.JobRunner.execute(JobRunner.java:112)"
+2026-01-15T12:31:40.310Z,DEBUG,catalog-api,cat-01,req-5d77f0,"Cache refresh","Refreshed 1,204 products from the database in 880 ms.",
+2026-01-15T12:32:15.774Z,ERROR,search-indexer,idx-01,req-0e66a9,"Index write rejected","Elasticsearch rejected a bulk request: 3 of 500 documents failed with mapper_parsing_exception (field price: cannot parse ""N/A"" as a number). The 497 other documents were indexed.","org.elasticsearch.ElasticsearchStatusException: Elasticsearch exception [type=mapper_parsing_exception, reason=failed to parse field [price] of type [double]]
+	at org.elasticsearch.client.RestHighLevelClient.parseResponseException(RestHighLevelClient.java:2187)
+	at org.elasticsearch.client.RestHighLevelClient.internalPerformRequest(RestHighLevelClient.java:2154)
+	at com.shop.search.BulkWriter.flush(BulkWriter.java:96)
+	at com.shop.search.IndexerTask.run(IndexerTask.java:51)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+Caused by: org.elasticsearch.ElasticsearchException: Elasticsearch exception [type=number_format_exception, reason=For input string: ""N/A""]"
+2026-01-15T12:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-5523-ac).",
+2026-01-15T12:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 14 minutes old. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",

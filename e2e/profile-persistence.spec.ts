@@ -91,12 +91,12 @@ test.describe("saved profiles survive a reload", () => {
   test("'Save view' keeps labels, hidden columns, derived columns and the search", async ({ page }) => {
     await createProfile(page);
     await clickColumnAction(page, 0, "Parse as date");
-    await renameColumn(page, 1, "Host");
-    await clickColumnAction(page, 2, "Hide column"); // payload
+    await renameColumn(page, 2, "Host");
+    await clickColumnAction(page, 3, "Hide column"); // payload
     await searchFor(page, "error", "Filter");
     const headers = await mainHeaders(page);
     const rows = await mainRows(page);
-    expect(headers).toEqual(["timestamp", "Host", "level", "timestamp (ISO)", "timestamp (local time)"]);
+    expect(headers).toEqual(["timestamp (ISO)", "timestamp (local time)", "Host", "level"]);
     expect(rows).toHaveLength(4);
 
     await page.getByRole("button", { name: "Save view" }).click();

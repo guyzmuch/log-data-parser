@@ -60,6 +60,9 @@ function normalizeDisplay(value: unknown): DisplayConfig | undefined {
     ...(Object.keys(columnWidths).length > 0 ? { columnWidths } : {}),
     visibleFieldKeys: Array.isArray(v.visibleFieldKeys) ? v.visibleFieldKeys.filter((k) => typeof k === "string") : [],
     ...(Array.isArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder.filter((k) => typeof k === "string") } : {}),
+    ...(Array.isArray(v.secondLineKeys) && v.secondLineKeys.length > 0
+      ? { secondLineKeys: v.secondLineKeys.filter((k) => typeof k === "string") }
+      : {}),
     fieldLabels,
     // Unknown/legacy kinds are dropped rather than rejecting the whole Profile.
     derivedFieldSelections: Array.isArray(v.derivedFieldSelections) ? v.derivedFieldSelections.filter(isDerivedFieldSpec) : [],
@@ -82,6 +85,7 @@ function normalizeViews(value: unknown): ProfileView[] | undefined {
       name: v.name,
       visibleFieldKeys: v.visibleFieldKeys,
       ...(isStringArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder } : {}),
+      ...(isStringArray(v.secondLineKeys) && v.secondLineKeys.length > 0 ? { secondLineKeys: v.secondLineKeys } : {}),
     });
   }
   return views.length > 0 ? views : undefined;

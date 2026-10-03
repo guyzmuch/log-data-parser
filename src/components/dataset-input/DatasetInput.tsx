@@ -10,6 +10,7 @@ import { useAppStore } from "@/state/useAppStore";
 const SAMPLES = [
   { file: "csv-with-header.csv", label: "CSV with header", hint: "comma" },
   { file: "quoted-fields.csv", label: "CSV with quoted fields", hint: "comma" },
+  { file: "app-errors-stack-traces.csv", label: "App errors with stack traces", hint: "comma" },
   { file: "apm-transaction-log.log", label: "APM transactions", hint: "pipe" },
   { file: "linux-syslog.log", label: "Linux syslog", hint: "space" },
   { file: "aws-alb-access-log.log", label: "AWS ALB access log", hint: "space" },

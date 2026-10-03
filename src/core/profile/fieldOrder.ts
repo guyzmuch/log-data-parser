@@ -1,9 +1,15 @@
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import type { DisplayConfig } from "@/core/profile/types";
 
-/** Every Field key in natural order: base columns as parsed, then Derived Fields in the order they were added. */
+/** Every Field key in natural order: base columns as parsed, each followed by its Derived Fields in the order they were added. */
 export function naturalFieldOrder(baseFieldNames: string[], display: DisplayConfig): string[] {
-  return [...baseFieldNames, ...display.derivedFieldSelections.map(derivedFieldKey)];
+  const order = baseFieldNames.flatMap((base) => [
+    base,
+    ...display.derivedFieldSelections.filter((spec) => spec.sourceFieldKey === base).map(derivedFieldKey),
+  ]);
+  // Derived Fields whose source isn't a base column (stale specs) still get a place, at the end.
+  const placed = new Set(order);
+  return [...order, ...display.derivedFieldSelections.map(derivedFieldKey).filter((key) => !placed.has(key))];
 }
 
 /**

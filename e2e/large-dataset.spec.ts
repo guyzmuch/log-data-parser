@@ -128,7 +128,7 @@ test.describe(`a ${LINES.toLocaleString("en-US")}-line log`, () => {
     await page.locator("main thead th").nth(1).getByRole("button", { name: /Column options/ }).click();
     await page.getByRole("menuitem", { name: /Parse as date/ }).click();
     await scrollBox(page).evaluate((box) => (box.scrollTop = box.scrollHeight));
-    await expect(renderedRows(page).last().locator("td").nth(5)).toHaveText(timestampOf(LINES - 1));
+    await expect(renderedRows(page).last().locator("td").nth(1)).toHaveText(timestampOf(LINES - 1));
   });
 
   test("export writes every row, rendered or not", async ({ page }) => {

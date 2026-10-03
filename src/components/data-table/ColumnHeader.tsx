@@ -2,6 +2,7 @@
 
 import { useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import {
+  ArrowElbowDownRightIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   BackspaceIcon,
@@ -83,6 +84,7 @@ interface ColumnHeaderProps {
 export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHeaderProps) {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const toggleFieldVisibility = useAppStore((s) => s.toggleFieldVisibility);
+  const toggleSecondLine = useAppStore((s) => s.toggleSecondLine);
   const moveFieldUp = useAppStore((s) => s.moveFieldUp);
   const moveFieldDown = useAppStore((s) => s.moveFieldDown);
   const renameField = useAppStore((s) => s.renameField);
@@ -177,6 +179,10 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
               <EyeSlashIcon />
               Hide column
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => toggleSecondLine(fieldKey)}>
+              <ArrowElbowDownRightIcon />
+              Show on a second line
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={isFirst} onSelect={() => moveFieldUp(fieldKey)}>
               <ArrowLeftIcon />
               Move left
@@ -185,6 +191,17 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
               <ArrowRightIcon />
               Move right
             </DropdownMenuItem>
+
+            {derivedSpec?.kind === "date" && (
+              <>
+                <DropdownMenuSeparator />
+                {/* The source column is usually hidden once derived from, so its timezone action is offered here too. */}
+                <DropdownMenuItem onSelect={() => setTimezoneOpen(true)}>
+                  <GlobeIcon />
+                  Add timezone…
+                </DropdownMenuItem>
+              </>
+            )}
 
             {!derivedSpec && (
               <>
@@ -237,12 +254,12 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
         </span>
       )}
 
-      {hasDate && !derivedSpec && (
+      {(hasDate || derivedSpec?.kind === "date") && (
         <TimezoneDialog
           open={timezoneOpen}
           onOpenChange={setTimezoneOpen}
-          sourceFieldKey={fieldKey}
-          sourceLabel={label}
+          sourceFieldKey={derivedSpec ? derivedSpec.sourceFieldKey : fieldKey}
+          sourceLabel={derivedSpec ? labelOf(derivedSpec.sourceFieldKey) : label}
         />
       )}
     </div>

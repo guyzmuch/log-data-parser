@@ -75,13 +75,14 @@ test("golden path: paste, split, derive, search, hide, export", async ({ page })
 
   await test.step("parse the timestamp column as a date; the bad value is flagged", async () => {
     await clickColumnAction(page, 0, "Parse as date");
-    expect(await mainHeaders(page)).toEqual([...BASE_HEADERS, "timestamp (ISO)", "timestamp (local time)"]);
+    // They take the raw column's place, and the raw column is hidden.
+    expect(await mainHeaders(page)).toEqual(["timestamp (ISO)", "timestamp (local time)", "user", "action", "status"]);
 
     const rows = await mainRows(page);
-    expect(rows[0][4]).toBe("2026-01-15T12:30:00.000Z");
-    expect(rows[1][4]).toBe("2026-01-15T12:31:00.000Z");
-    expect(rows[2].slice(4)).toEqual(["Invalid parse", "Invalid parse"]);
-    expect(rows[3][4]).toBe("2026-01-15T12:33:00.000Z");
+    expect(rows[0][0]).toBe("2026-01-15T12:30:00.000Z");
+    expect(rows[1][0]).toBe("2026-01-15T12:31:00.000Z");
+    expect(rows[2].slice(0, 2)).toEqual(["Invalid parse", "Invalid parse"]);
+    expect(rows[3][0]).toBe("2026-01-15T12:33:00.000Z");
     await expect(page.getByText("Invalid parse")).toHaveCount(2);
   });
 
@@ -91,33 +92,37 @@ test("golden path: paste, split, derive, search, hide, export", async ({ page })
     await expect(page.locator("main mark")).toHaveCount(2);
 
     await searchFor(page, "login", "Filter");
-    expect((await mainRows(page)).map((row) => row[1])).toEqual(["alice", "dave"]);
+    expect((await mainRows(page)).map((row) => row[2])).toEqual(["alice", "dave"]);
   });
 
   await test.step("select rows and hide them", async () => {
     await searchFor(page, "", "Filter");
     await hideRows(page, [0, 1]); // alice and bob
-    expect((await mainRows(page)).map((row) => row[1])).toEqual(["carol", "dave", "erin"]);
+    expect((await mainRows(page)).map((row) => row[2])).toEqual(["carol", "dave", "erin"]);
     await expect(page.getByText("2 rows hidden")).toBeVisible();
   });
 
   await test.step("export with each scope", async () => {
     // All records: hidden rows included, derived columns included, the bad date as its own text.
+    // The file follows the shown columns, so the hidden raw timestamp isn't in it.
     const all = await exportCsvLines(page);
-    expect(all[0]).toBe("timestamp,user,action,status,timestamp (ISO),timestamp (local time)");
+    expect(all[0]).toBe("timestamp (ISO),timestamp (local time),user,action,status");
     expect(all).toHaveLength(6);
-    expect(all[3].startsWith("not-a-date,carol,delete,ok,Invalid parse,Invalid parse")).toBe(true);
+    expect(all[3]).toBe("Invalid parse,Invalid parse,carol,delete,ok");
+
+    // The local-time column holds commas (quoted), so the user is read from the end of the line.
+    const userOf = (line: string) => line.split(",").at(-3);
 
     await chooseExportScope(page, "Excluding hidden");
     const visible = await exportCsvLines(page);
     expect(visible).toHaveLength(4);
-    expect(visible.slice(1).map((line) => line.split(",")[1])).toEqual(["carol", "dave", "erin"]);
+    expect(visible.slice(1).map(userOf)).toEqual(["carol", "dave", "erin"]);
 
     // Matching filter follows the Filter search (and ignores which rows are hidden).
     await searchFor(page, "login", "Filter");
     await chooseExportScope(page, "Matching filter");
     const matching = await exportCsvLines(page);
-    expect(matching.slice(1).map((line) => line.split(",")[1])).toEqual(["alice", "dave"]);
+    expect(matching.slice(1).map(userOf)).toEqual(["alice", "dave"]);
   });
 
   await test.step("unhide everything", async () => {

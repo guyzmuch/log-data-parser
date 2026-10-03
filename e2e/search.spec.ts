@@ -105,6 +105,7 @@ test.describe("what is searched", () => {
     await searchFor(page, "", "Filter");
     await clickColumnAction(page, 0, "Parse as date");
     await searchFor(page, "12:30:48 PM", "Filter");
-    expect(await hostsShown(page)).toEqual(["host-02"]);
+    // The two date columns come first now, so host is the third column.
+    expect((await mainRows(page)).map((row) => row[2])).toEqual(["host-02"]);
   });
 });

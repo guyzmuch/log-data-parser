@@ -27,6 +27,10 @@ interface AppState {
   activeProfile: Profile | null;
   /** Session-only; never persisted to the Profile (see Hidden Record in CONTEXT.md). */
   hiddenRecordIndexes: Set<number>;
+  /** The user's remarks on Records, by Record index. Session-only like hidden Records; exported as an extra CSV column. */
+  recordComments: Map<number, string>;
+  /** Whether the table shows its Comment column. Off by default; comments are exported either way. */
+  showComments: boolean;
   /** Rows currently selected (via click/ctrl-click/shift-click), candidates for hiding — not the same as hiddenRecordIndexes. */
   selectedRecordIndexes: Set<number>;
   /** The last plain- or ctrl-clicked row index, used as the shift-click range anchor. */
@@ -95,6 +99,8 @@ interface AppState {
   /** Puts the column order back to natural: base columns as parsed, then Derived Fields as they were added. */
   resetFieldOrder: () => void;
   renameField: (key: string, label: string) => void;
+  /** Moves a column to its own full-width line under each row, or back into the row. Part of the active view. */
+  toggleSecondLine: (key: string) => void;
   /** Sets a column's width in px, or puts it back to automatic when null. */
   setColumnWidth: (key: string, width: number | null) => void;
   setSearchState: (search: SearchState) => void;
@@ -116,6 +122,9 @@ interface AppState {
    * the user can't see (same rule as selectAllVisible/deselectAllVisible).
    */
   hideSelectedRecords: (visibleIndexesInOrder: number[]) => void;
+  /** Sets the comment on a Record; blank text removes it. */
+  setRecordComment: (index: number, comment: string) => void;
+  setShowComments: (show: boolean) => void;
   /** Clears hiddenRecordIndexes, making every Record visible again. */
   unhideAllRecords: () => void;
   /** Deselects every Record. */
@@ -160,10 +169,24 @@ export const useAppStore = create<AppState>((set, get) => {
 
     const derivedFieldSelections = [...activeProfile.display.derivedFieldSelections, ...newSpecs];
     const newKeys = newSpecs.map(derivedFieldKey);
-    // New Derived Fields go at the end of the column order and default to visible, same as a
-    // freshly-created Profile's base fields.
-    const fieldOrder = [...currentFieldOrder(activeProfile.display, baseFieldNames), ...newKeys];
+    const fieldOrder = currentFieldOrder(activeProfile.display, baseFieldNames).slice();
     const shown = new Set([...activeProfile.display.visibleFieldKeys, ...newKeys]);
+
+    // Each new Derived Field goes right after its source column (and after the Derived Fields it
+    // already has there), shown. The source is hidden the first time it gets one: usually only the
+    // parsed data is wanted, not the raw value. It can be shown again from the Columns popover, and
+    // later derivations from it leave it as the user set it.
+    const hadChildren = new Set(activeProfile.display.derivedFieldSelections.map((spec) => spec.sourceFieldKey));
+    for (const spec of newSpecs) {
+      const parent = spec.sourceFieldKey;
+      const family = new Set([parent, ...derivedFieldSelections.filter((s) => s.sourceFieldKey === parent).map(derivedFieldKey)]);
+      const anchor = Math.max(...fieldOrder.map((key, i) => (family.has(key) ? i : -1)));
+      fieldOrder.splice(anchor === -1 ? fieldOrder.length : anchor + 1, 0, derivedFieldKey(spec));
+      if (!hadChildren.has(parent)) {
+        shown.delete(parent);
+        hadChildren.add(parent);
+      }
+    }
 
     set({
       records: applyDerivedFields(records, derivedFieldSelections),
@@ -185,6 +208,8 @@ export const useAppStore = create<AppState>((set, get) => {
     records: [],
     activeProfile: null,
     hiddenRecordIndexes: new Set(),
+    recordComments: new Map(),
+    showComments: false,
     selectedRecordIndexes: new Set(),
     selectionAnchorIndex: null,
     savedProfiles: [],
@@ -206,6 +231,8 @@ export const useAppStore = create<AppState>((set, get) => {
         baseFieldNames: [],
         records: [],
         hiddenRecordIndexes: new Set(),
+        recordComments: new Map(),
+        showComments: false,
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
         savedProfiles: listProfiles(),
@@ -222,11 +249,14 @@ export const useAppStore = create<AppState>((set, get) => {
       // built-in template with nothing visible yet), so its display is reconciled with what this
       // Dataset really parsed to before anything is derived or rendered.
       const display = reconcileDisplay(profile.display, baseFieldNames);
+      const parsedIndexes = new Set(baseRecords.map((record) => record.index));
 
       set({
         activeProfile: reconcileViews({ ...profile, display }, baseFieldNames),
         baseFieldNames,
         records: applyDerivedFields(baseRecords, display.derivedFieldSelections),
+        // Comments survive a profile switch (same Dataset); only those on Records the new parse lacks go.
+        recordComments: new Map([...get().recordComments].filter(([index]) => parsedIndexes.has(index))),
         hiddenRecordIndexes: new Set(),
         selectedRecordIndexes: new Set(),
         selectionAnchorIndex: null,
@@ -351,6 +381,16 @@ export const useAppStore = create<AppState>((set, get) => {
       updateDisplay((display) => ({ ...display, fieldLabels: { ...display.fieldLabels, [key]: label } }));
     },
 
+    toggleSecondLine: (key) => {
+      updateDisplay((display) => {
+        const fieldOrder = currentFieldOrder(display, get().baseFieldNames);
+        const flagged = new Set(display.secondLineKeys ?? []);
+        if (!flagged.delete(key)) flagged.add(key);
+        const secondLineKeys = visibleInOrder(fieldOrder, flagged);
+        return { ...display, fieldOrder, secondLineKeys: secondLineKeys.length > 0 ? secondLineKeys : undefined };
+      });
+    },
+
     setColumnWidth: (key, width) => {
       updateDisplay((display) => {
         const columnWidths = { ...display.columnWidths };
@@ -399,6 +439,15 @@ export const useAppStore = create<AppState>((set, get) => {
       }
       set({ hiddenRecordIndexes: hidden, selectedRecordIndexes: stillSelected, selectionAnchorIndex: null });
     },
+
+    setRecordComment: (index, comment) => {
+      const next = new Map(get().recordComments);
+      if (comment.trim() === "") next.delete(index);
+      else next.set(index, comment.trim());
+      set({ recordComments: next });
+    },
+
+    setShowComments: (show) => set({ showComments: show }),
 
     unhideAllRecords: () => {
       set({ hiddenRecordIndexes: new Set() });

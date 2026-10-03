@@ -19,8 +19,9 @@ const CHOICES: WizardChoices = { delimiter: "Pipe", header: true, stripQuotes: t
 test("Edit parsing keeps the labels and Derived Fields already set up on the Profile", async ({ page }) => {
   await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
   await clickColumnAction(page, 0, "Parse as date");
-  await clickColumnAction(page, 2, "Extract JSON keys");
-  await renameColumn(page, 1, "Host");
+  // The date columns replace "timestamp", so host is now the third column and payload the fourth.
+  await clickColumnAction(page, 3, "Extract JSON keys");
+  await renameColumn(page, 2, "Host");
 
   const headersBefore = await mainHeaders(page);
   expect(headersBefore).toContain("Host");
@@ -92,7 +93,7 @@ test("an unknown timezone is rejected with a message instead of making every row
   // A real zone works, and typing again clears the message.
   await addTimezone(page, 0, "Europe/Paris");
   await expect(dialog).toBeHidden();
-  expect((await mainHeaders(page)).at(-1)).toBe("timestamp (Europe/Paris)");
+  expect((await mainHeaders(page)).slice(0, 3)).toEqual(["timestamp (ISO)", "timestamp (local time)", "timestamp (Europe/Paris)"]);
 });
 
 test("'Hide selected' only acts on rows the filter currently shows", async ({ page }) => {

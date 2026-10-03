@@ -108,8 +108,8 @@ test.describe("column header menu", () => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
     await clickColumnAction(page, 0, "Parse as date");
 
-    await expect(headerCell(page, 4)).toContainText("from timestamp · date");
-    await headerCell(page, 4).getByRole("button", { name: /Column options/ }).click();
+    await expect(headerCell(page, 1)).toContainText("from timestamp · date");
+    await headerCell(page, 1).getByRole("button", { name: /Column options/ }).click();
     await expect(page.getByRole("menuitem", { name: "Rename column" })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: /Parse as date/ })).toHaveCount(0);
   });

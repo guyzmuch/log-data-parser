@@ -17,6 +17,7 @@ import type { DisplayConfig } from "@/core/profile/types";
  *   common, or nothing set yet, e.g. a built-in template) everything is made
  *   visible. A column the Profile has never seen stays hidden otherwise — a
  *   Profile can't tell "new" from "deliberately hidden".
+ * - Second-line keys that don't exist are dropped (a hidden column keeps its flag).
  * - Labels and search state carry over untouched.
  */
 export function reconcileDisplay(display: DisplayConfig, baseFieldNames: string[]): DisplayConfig {
@@ -40,10 +41,14 @@ export function reconcileDisplay(display: DisplayConfig, baseFieldNames: string[
 
   const shown = savedVisible.length > 0 ? new Set(savedVisible) : knownKeys;
 
+  const { secondLineKeys, ...rest } = display;
+  const secondLine = visibleInOrder(fieldOrder, new Set(secondLineKeys ?? []));
+
   return {
-    ...display,
+    ...rest,
     derivedFieldSelections,
     fieldOrder,
     visibleFieldKeys: visibleInOrder(fieldOrder, shown),
+    ...(secondLine.length > 0 ? { secondLineKeys: secondLine } : {}),
   };
 }

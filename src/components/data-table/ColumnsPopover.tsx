@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ColumnsIcon, DotsSixVerticalIcon, EyeIcon, EyeSlashIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { ArrowElbowDownRightIcon, ColumnsIcon, DotsSixVerticalIcon, EyeIcon, EyeSlashIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,6 +22,7 @@ export function ColumnsPopover() {
   const showAllFields = useAppStore((s) => s.showAllFields);
   const hideAllFields = useAppStore((s) => s.hideAllFields);
   const resetFieldOrder = useAppStore((s) => s.resetFieldOrder);
+  const toggleSecondLine = useAppStore((s) => s.toggleSecondLine);
 
   const [query, setQuery] = useState("");
   const [dragKey, setDragKey] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function ColumnsPopover() {
   const labelOf = (key: string) => fieldLabels[key] ?? key;
   const sourceByDerivedKey = new Map(derivedFieldSelections.map((spec) => [derivedFieldKey(spec), spec.sourceFieldKey]));
   const visible = new Set(visibleFieldKeys);
+  const secondLine = new Set(activeProfile.display.secondLineKeys);
   // The full column order: a hidden column stays where it is (dimmed) instead of dropping to the bottom.
   const rows = currentFieldOrder(activeProfile.display, baseFieldNames);
 
@@ -84,6 +86,7 @@ export function ColumnsPopover() {
         <ul className="max-h-80 overflow-y-auto" aria-label="Columns">
           {listed.map((key) => {
             const isShown = visible.has(key);
+            const onSecondLine = secondLine.has(key);
             const source = sourceByDerivedKey.get(key);
             return (
               <li
@@ -131,6 +134,19 @@ export function ColumnsPopover() {
                 <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={labelOf(key)}>
                   {labelOf(key)}
                 </span>
+                <button
+                  type="button"
+                  aria-label={`${onSecondLine ? "Show in the row" : "Show on a second line"}: ${labelOf(key)}`}
+                  aria-pressed={onSecondLine}
+                  title={onSecondLine ? "On a second line — click to put it back in the row" : "Show on a second line under the row"}
+                  onClick={() => toggleSecondLine(key)}
+                  className={cn(
+                    "grid size-6 shrink-0 place-items-center outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring",
+                    onSecondLine ? "bg-accent text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  <ArrowElbowDownRightIcon className="size-4" />
+                </button>
                 {source !== undefined && (
                   <span className="shrink-0 text-[0.6875rem] text-muted-foreground">from {labelOf(source)}</span>
                 )}
@@ -155,7 +171,7 @@ export function ColumnsPopover() {
           {listed.length === 0 && <li className="px-2 py-3 text-sm text-muted-foreground">No column matches “{query}”.</li>}
         </ul>
         <p className="border-t border-border px-1 pt-2 text-xs text-muted-foreground">
-          Drag to reorder. A hidden column keeps its place. Rename a column from its header menu.
+          Drag to reorder. A hidden column keeps its place. The arrow puts a column on its own line under each row.
         </p>
       </PopoverContent>
     </Popover>

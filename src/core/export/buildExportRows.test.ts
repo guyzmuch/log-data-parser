@@ -92,6 +92,38 @@ describe("buildExportRows", () => {
     expect(result.rows).toEqual([["a", "Invalid parse"]]);
   });
 
+  describe("comments", () => {
+    const records = [record(0, "a", "1"), record(1, "b", "2"), record(2, "c", "3")];
+
+    it("adds a final comment column when a record has a comment, blank for the others", () => {
+      const result = buildExportRows(records, display(), "all", new Set(), new Map([[1, "check this, odd"]]));
+      expect(result.header).toEqual(["name", "value", "comment"]);
+      expect(result.rows).toEqual([
+        ["a", "1", ""],
+        ["b", "2", "check this, odd"],
+        ["c", "3", ""],
+      ]);
+    });
+
+    it("adds no column when there are no comments, or none on the exported rows", () => {
+      expect(buildExportRows(records, display(), "all", new Set()).header).toEqual(["name", "value"]);
+      const result = buildExportRows(records, display(), "excluding-hidden", new Set([1]), new Map([[1, "hidden row"]]));
+      expect(result.header).toEqual(["name", "value"]);
+      expect(result.rows).toHaveLength(2);
+    });
+
+    it("avoids clashing with an existing column called comment", () => {
+      const result = buildExportRows(
+        records,
+        display({ fieldLabels: { name: "comment" } }),
+        "all",
+        new Set(),
+        new Map([[0, "x"]]),
+      );
+      expect(result.header).toEqual(["comment", "value", "comment (note)"]);
+    });
+  });
+
   it("only exports Visible Fields, dropping hidden columns", () => {
     const records = [record(0, "a", "1")];
     const result = buildExportRows(records, display({ visibleFieldKeys: ["name"] }), "all", new Set());

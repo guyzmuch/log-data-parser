@@ -106,11 +106,11 @@ test.describe("CSV export of a padded, quoted pipe file", () => {
 
     const lines = await exportCsvLines(page);
     const header = lines[0].split(",");
-    expect.soft(header.slice(0, 4)).toEqual(["timestamp", "host", "payload", "level"]);
-    expect.soft(header.slice(4, 7)).toEqual(["payload.user", "payload.action", "payload.count"]);
-    expect.soft(header.slice(7)).toEqual(["timestamp (ISO)", "timestamp (local time)"]);
+    // Each derived group sits where its (now hidden) source was.
+    expect.soft(header.slice(0, 2)).toEqual(["timestamp (ISO)", "timestamp (local time)"]);
+    expect.soft(header.slice(2)).toEqual(["host", "payload.user", "payload.action", "payload.count", "level"]);
     // Local time is "Jan 15, 2026, 12:30:00 PM" — it contains a comma, so it is quoted.
-    expect.soft(lines[1]).toContain(',alice,login,3,2026-01-15T12:30:00.000Z,"Jan 15, 2026, 12:30:00');
+    expect.soft(lines[1]).toBe('2026-01-15T12:30:00.000Z,"Jan 15, 2026, 12:30:00 PM",host-01,alice,login,3,error');
   });
 
   test("the stringified file exports readable data after Strip escape characters", async ({ page }) => {
@@ -118,10 +118,7 @@ test.describe("CSV export of a padded, quoted pipe file", () => {
     await clickColumnAction(page, 2, "Strip escape characters");
 
     const lines = await exportCsvLines(page);
-    expect.soft(lines[0]).toBe("timestamp,host,payload,level,payload (unescaped)");
-    expect.soft(lines[1]).toBe(
-      '1768480200,host-01,"{\\""user\\"":\\""alice\\"",\\""action\\"":\\""login\\"",\\""count\\"":3}",error,' +
-        '"{""user"":""alice"",""action"":""login"",""count"":3}"',
-    );
+    expect.soft(lines[0]).toBe("timestamp,host,payload (unescaped),level");
+    expect.soft(lines[1]).toBe('1768480200,host-01,"{""user"":""alice"",""action"":""login"",""count"":3}",error');
   });
 });
