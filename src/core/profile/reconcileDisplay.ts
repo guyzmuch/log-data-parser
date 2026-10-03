@@ -1,5 +1,6 @@
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { isDerivedFieldSpec } from "@/core/derived-fields/isDerivedFieldSpec";
+import { pruneColumnOptions } from "@/core/profile/columnOptions";
 import { visibleInOrder } from "@/core/profile/fieldOrder";
 import type { DisplayConfig } from "@/core/profile/types";
 
@@ -17,7 +18,7 @@ import type { DisplayConfig } from "@/core/profile/types";
  *   common, or nothing set yet, e.g. a built-in template) everything is made
  *   visible. A column the Profile has never seen stays hidden otherwise — a
  *   Profile can't tell "new" from "deliberately hidden".
- * - Second-line keys that don't exist are dropped (a hidden column keeps its flag).
+ * - Column options of columns that don't exist are dropped (a hidden column keeps its options).
  * - Labels and search state carry over untouched.
  */
 export function reconcileDisplay(display: DisplayConfig, baseFieldNames: string[]): DisplayConfig {
@@ -41,14 +42,14 @@ export function reconcileDisplay(display: DisplayConfig, baseFieldNames: string[
 
   const shown = savedVisible.length > 0 ? new Set(savedVisible) : knownKeys;
 
-  const { secondLineKeys, ...rest } = display;
-  const secondLine = visibleInOrder(fieldOrder, new Set(secondLineKeys ?? []));
+  const { columnOptions, ...rest } = display;
+  const prunedOptions = pruneColumnOptions(columnOptions, knownKeys);
 
   return {
     ...rest,
     derivedFieldSelections,
     fieldOrder,
     visibleFieldKeys: visibleInOrder(fieldOrder, shown),
-    ...(secondLine.length > 0 ? { secondLineKeys: secondLine } : {}),
+    ...(prunedOptions ? { columnOptions: prunedOptions } : {}),
   };
 }

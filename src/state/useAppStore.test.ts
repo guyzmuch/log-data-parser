@@ -5,6 +5,7 @@ import { createDefaultDisplayConfig, createProfile } from "@/core/profile/create
 import type { DelimiterParsingConfig } from "@/core/parsing/types";
 import type { Profile } from "@/core/profile/types";
 import { listProfiles } from "@/core/persistence/localStorageProfileStore";
+import { normalizeProfile } from "@/core/profile/validateProfile";
 import { useAppStore } from "@/state/useAppStore";
 
 const initialState = useAppStore.getState();
@@ -423,53 +424,68 @@ describe("record comments", () => {
   });
 });
 
-describe("second-line columns", () => {
+describe("column options (second line, color-coding)", () => {
   const display = () => state().activeProfile!.display;
 
   beforeEach(() => {
     load();
   });
 
-  it("flags and unflags a column, keeping it in the visible list", () => {
-    state().toggleSecondLine("payload");
-    expect(display().secondLineKeys).toEqual(["payload"]);
+  it("turns an option on and off per column, keeping the column in the visible list", () => {
+    state().toggleColumnOption("payload", "secondLine");
+    expect(display().columnOptions).toEqual({ payload: { secondLine: true } });
     expect(display().visibleFieldKeys).toEqual(["id", "payload", "when"]);
 
-    state().toggleSecondLine("payload");
-    expect(display().secondLineKeys).toBeUndefined();
+    state().toggleColumnOption("payload", "colorCode");
+    expect(display().columnOptions).toEqual({ payload: { secondLine: true, colorCode: true } });
+
+    state().toggleColumnOption("payload", "secondLine");
+    state().toggleColumnOption("payload", "colorCode");
+    expect(display().columnOptions).toBeUndefined();
   });
 
-  it("belongs to the view: each view keeps its own second-line columns", () => {
-    state().toggleSecondLine("payload");
+  it("belongs to the view: each view keeps its own options", () => {
+    state().toggleColumnOption("payload", "secondLine");
     state().addView("Flat"); // starts as a copy, so payload is on a second line here too
-    state().toggleSecondLine("payload");
-    expect(display().secondLineKeys).toBeUndefined();
+    state().toggleColumnOption("payload", "secondLine");
+    state().toggleColumnOption("id", "colorCode");
+    expect(display().columnOptions).toEqual({ id: { colorCode: true } });
 
     const [first, second] = state().activeProfile!.views!;
     state().switchView(first.id);
-    expect(display().secondLineKeys).toEqual(["payload"]);
+    expect(display().columnOptions).toEqual({ payload: { secondLine: true } });
     state().switchView(second.id);
-    expect(display().secondLineKeys).toBeUndefined();
+    expect(display().columnOptions).toEqual({ id: { colorCode: true } });
   });
 
   it("is saved with the profile and restored when it is applied", () => {
-    state().toggleSecondLine("payload");
+    state().toggleColumnOption("payload", "secondLine");
+    state().toggleColumnOption("id", "colorCode");
     state().saveCurrentView();
 
     const saved = listProfiles()[0];
-    expect(saved.views![0].secondLineKeys).toEqual(["payload"]);
+    expect(saved.views![0].columnOptions).toEqual({ payload: { secondLine: true }, id: { colorCode: true } });
 
     state().loadDataset(RAW);
     state().applyProfile(saved);
-    expect(display().secondLineKeys).toEqual(["payload"]);
+    expect(display().columnOptions).toEqual({ payload: { secondLine: true }, id: { colorCode: true } });
   });
 
-  it("ignores keys that no longer exist when applied to another dataset", () => {
-    state().toggleSecondLine("payload");
+  it("ignores columns that no longer exist when applied to another dataset", () => {
+    state().toggleColumnOption("payload", "secondLine");
     const profile = state().activeProfile!;
     state().loadDataset("id | other\n1 | x");
     state().applyProfile(profile);
-    expect(display().secondLineKeys).toBeUndefined();
+    expect(display().columnOptions).toBeUndefined();
+  });
+
+  it("reads a profile saved with the older secondLineKeys list", () => {
+    const legacy = JSON.parse(JSON.stringify(makeProfile())) as Record<string, unknown>;
+    (legacy.display as Record<string, unknown>).secondLineKeys = ["payload"];
+    state().loadDataset(RAW);
+    state().importSavedProfiles([normalizeProfile(legacy)!]);
+    state().applyProfile(listProfiles()[0]);
+    expect(display().columnOptions).toEqual({ payload: { secondLine: true } });
   });
 });
 

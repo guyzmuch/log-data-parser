@@ -7,12 +7,12 @@ export const DEFAULT_VIEW_NAME = "Default";
 
 /** The columns of a Profile's live display, as a view stores them. */
 function liveColumns(profile: Profile): ViewColumns {
-  const { visibleFieldKeys, fieldOrder, secondLineKeys } = profile.display;
-  // secondLineKeys is always present (possibly undefined) so that spreading this over a view or a display clears an old value.
+  const { visibleFieldKeys, fieldOrder, columnOptions } = profile.display;
+  // columnOptions is always present (possibly undefined) so that spreading this over a view or a display clears an old value.
   return {
     visibleFieldKeys: [...visibleFieldKeys],
     ...(fieldOrder ? { fieldOrder: [...fieldOrder] } : {}),
-    secondLineKeys: secondLineKeys?.length ? [...secondLineKeys] : undefined,
+    columnOptions: columnOptions ? structuredClone(columnOptions) : undefined,
   };
 }
 
@@ -36,16 +36,16 @@ export function syncActiveView(profile: Profile): Profile {
 
 /** `view`'s columns made consistent with the Fields the Profile's display actually has. */
 function reconcileColumns(profile: Profile, view: ViewColumns, baseFieldNames: string[]): ViewColumns {
-  const { visibleFieldKeys, fieldOrder, secondLineKeys } = reconcileDisplay(
+  const { visibleFieldKeys, fieldOrder, columnOptions } = reconcileDisplay(
     {
       ...profile.display,
       visibleFieldKeys: view.visibleFieldKeys,
       fieldOrder: view.fieldOrder,
-      secondLineKeys: view.secondLineKeys,
+      columnOptions: view.columnOptions,
     },
     baseFieldNames,
   );
-  return { visibleFieldKeys, fieldOrder, secondLineKeys };
+  return { visibleFieldKeys, fieldOrder, columnOptions };
 }
 
 /**
@@ -64,7 +64,7 @@ export function reconcileViews(profile: Profile, baseFieldNames: string[]): Prof
       ...profile.display,
       visibleFieldKeys: active.visibleFieldKeys,
       fieldOrder: active.fieldOrder,
-      secondLineKeys: active.secondLineKeys,
+      columnOptions: active.columnOptions,
     },
   };
 }

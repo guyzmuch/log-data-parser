@@ -8,6 +8,19 @@ export interface SearchState {
   mode: SearchMode;
 }
 
+/** How one column is displayed beyond being shown or hidden. Every option is off when missing. */
+export interface ColumnOptions {
+  /** Shown on its own full-width line under the row instead of as a column. */
+  secondLine?: boolean;
+  /** Each distinct value gets its own (deterministic) color, as a badge. */
+  colorCode?: boolean;
+}
+
+export type ColumnOption = keyof ColumnOptions;
+
+/** Options by Field key. A column with no option on has no entry. */
+export type ColumnOptionsMap = Record<string, ColumnOptions>;
+
 export interface DisplayConfig {
   /**
    * Ordered list of visible Field keys — order IS display order. Show/hide
@@ -22,10 +35,10 @@ export interface DisplayConfig {
    */
   fieldOrder?: string[];
   /**
-   * Shown Field keys displayed on their own line under the row (full width) instead of as a column,
-   * in column order. Part of a view: the active view's list is mirrored here.
+   * Per-column display options, by Field key (see ColumnOptions). Part of a view: the active view's
+   * options are mirrored here. Absent when no column has any option on.
    */
-  secondLineKeys?: string[];
+  columnOptions?: ColumnOptionsMap;
   fieldLabels: Record<string, string>;
   /** Column widths in px the user dragged to, by Field key. A column without an entry gets an automatic width. Shared by all views. */
   columnWidths?: Record<string, number>;
@@ -37,7 +50,7 @@ export interface DisplayConfig {
 export interface ViewColumns {
   visibleFieldKeys: string[];
   fieldOrder?: string[];
-  secondLineKeys?: string[];
+  columnOptions?: ColumnOptionsMap;
 }
 
 /**

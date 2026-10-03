@@ -2,6 +2,8 @@
 
 import { Fragment, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ColumnHeader } from "@/components/data-table/ColumnHeader";
+import { ValueBadge } from "@/components/data-table/ValueBadge";
+import { useColorFit } from "@/components/data-table/useColorFit";
 import { useDetectedPatterns } from "@/components/data-table/useDetectedPatterns";
 import { useVisibleRecords } from "@/components/data-table/useVisibleRecords";
 import { useWindowedRows } from "@/components/data-table/useWindowedRows";
@@ -10,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { maxValueLengths } from "@/core/dataset/valueLengths";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { hasColumnOption } from "@/core/profile/columnOptions";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
 
@@ -172,15 +175,16 @@ export function DataTable() {
   const selectAllVisible = useAppStore((s) => s.selectAllVisible);
   const deselectAllVisible = useAppStore((s) => s.deselectAllVisible);
   const detectedByField = useDetectedPatterns();
+  const colorFits = useColorFit();
   const { shownRecords, visibleRecords, visibleIndexesInOrder, ordinalByIndex, visibleSelectedCount } =
     useVisibleRecords();
   const valueLengths = useMemo(() => maxValueLengths(records), [records]);
   // Shown columns flagged "second line" leave the header and the row; each gets its own full-width line
   // under the row instead. Every record is therefore the same height: the row plus one line per flagged column.
-  const flagged = new Set(activeProfile?.display.secondLineKeys ?? []);
+  const columnOptions = activeProfile?.display.columnOptions;
   const shownKeys = activeProfile?.display.visibleFieldKeys ?? [];
-  const extraKeys = shownKeys.filter((key) => flagged.has(key));
-  const columnKeys = shownKeys.filter((key) => !flagged.has(key));
+  const extraKeys = shownKeys.filter((key) => hasColumnOption(columnOptions, key, "secondLine"));
+  const columnKeys = shownKeys.filter((key) => !hasColumnOption(columnOptions, key, "secondLine"));
   const recordHeight = ROW_HEIGHT + extraKeys.length * EXTRA_ROW_HEIGHT;
   const { scrollRef, onScroll, range } = useWindowedRows(visibleRecords.length, recordHeight, OVERSCAN_ROWS);
 
@@ -213,7 +217,9 @@ export function DataTable() {
     const spec = derivedByKey.get(key);
     const caption = spec ? `from ${labelOf(spec.sourceFieldKey)} · ${spec.kind}`.length * 0.8 : 0;
     const header = Math.max(
-      labelOf(key).length + HEADER_EXTRA_CH + (detectedByField[key]?.length ?? 0) * HINT_CHIP_CH,
+      labelOf(key).length +
+        HEADER_EXTRA_CH +
+        ((detectedByField[key]?.length ?? 0) + (colorFits.get(key)?.status === "good" ? 1 : 0)) * HINT_CHIP_CH,
       caption,
     );
     return Math.min(COLUMN_MAX_CH, Math.max(COLUMN_MIN_CH, valueLengths.get(key) ?? 0, header));
@@ -233,6 +239,13 @@ export function DataTable() {
       return;
     }
     selectRecord(index, { ctrlOrMeta: true, shift: false }, visibleIndexesInOrder);
+  }
+
+  /** The text of a second-line value: highlighted by the search, and a color badge when its column is color-coded. */
+  function extraContent(key: string, value: string, parseError: boolean): ReactNode {
+    if (parseError) return value;
+    const content = mode === "highlight" ? highlightMatches(value, term) : value;
+    return hasColumnOption(columnOptions, key, "colorCode") ? <ValueBadge value={value}>{content}</ValueBadge> : content;
   }
 
   // The range can lag behind a list that just got shorter (a new search) until the next measurement.
@@ -291,6 +304,7 @@ export function DataTable() {
                 <ColumnHeader
                   fieldKey={key}
                   detected={detectedByField[key] ?? []}
+                  colorFit={colorFits.get(key)}
                   isFirst={position === 0}
                   isLast={position === columnKeys.length - 1}
                 />
@@ -341,9 +355,10 @@ export function DataTable() {
                   );
                 }
                 const value = field?.value ?? "";
+                const content = mode === "highlight" ? highlightMatches(value, term) : value;
                 return (
                   <TableCell key={key} className={cellClass} title={value.length > COLUMN_MAX_CH || columnWidths?.[key] ? value : undefined}>
-                    {mode === "highlight" ? highlightMatches(value, term) : value}
+                    {hasColumnOption(columnOptions, key, "colorCode") ? <ValueBadge value={value}>{content}</ValueBadge> : content}
                   </TableCell>
                 );
               })}
@@ -371,7 +386,7 @@ export function DataTable() {
                   >
                     <div className={cn("line-clamp-3 font-mono leading-5 break-words", field?.parseError && "text-destructive")}>
                       <span className="mr-2 font-sans text-xs text-muted-foreground select-none">{labelOf(key)}</span>
-                      {!field?.parseError && mode === "highlight" ? highlightMatches(value, term) : value}
+                      {extraContent(key, value, field?.parseError === true)}
                     </div>
                   </TableCell>
                 </TableRow>

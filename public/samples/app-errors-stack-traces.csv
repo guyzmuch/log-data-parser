@@ -30,5 +30,17 @@ Caused by: java.net.SocketTimeoutException: Read timed out
 	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
 	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
 Caused by: org.elasticsearch.ElasticsearchException: Elasticsearch exception [type=number_format_exception, reason=For input string: ""N/A""]"
-2026-01-15T12:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-5523-ac).",
-2026-01-15T12:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 14 minutes old. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",
+2026-01-15T12:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-1111-ac).",
+2026-01-15T12:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000).è. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",
+2026-01-15T13:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-222-ac).",
+2026-01-15T14:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs. Oldest job is 14 minutes old. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",
+2026-01-15T15:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-3333-ac).",
+2026-01-15T16:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 14 minutes old.  consider scaling the worker pool before the evening peak.",
+2026-01-15T17:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-444-ac).",
+2026-01-15T18:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 14 minutes old. Two of the four workers are busy with large orders; ",
+2026-01-15T19:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-5555-ac).",
+2026-01-15T20:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 14 minutes old.",
+2026-01-15T21:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-666-ac).",
+2026-01-15T22:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 43 minutes old. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",
+2026-01-15T23:33:09.002Z,INFO,payment-api,pay-02,req-18c4be,"Payment authorized","Order 48230 authorized for 59.90 EUR in 210 ms (gateway gw-77777-ac).",
+2026-01-15T12:33:47.640Z,WARN,orders-worker,wrk-01,req-77a0d3,"Queue backlog growing","The invoice queue holds 2,310 jobs (alert threshold 2,000). Oldest job is 232323 minutes old. Two of the four workers are busy with large orders; consider scaling the worker pool before the evening peak.",

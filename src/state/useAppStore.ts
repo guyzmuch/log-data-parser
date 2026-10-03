@@ -12,7 +12,8 @@ import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
 import { createProfile } from "@/core/profile/createProfile";
 import { currentFieldOrder, moveBefore, naturalFieldOrder, visibleInOrder } from "@/core/profile/fieldOrder";
 import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
-import type { DisplayConfig, Profile, SearchState } from "@/core/profile/types";
+import { hasColumnOption, setColumnOption } from "@/core/profile/columnOptions";
+import type { ColumnOption, DisplayConfig, Profile, SearchState } from "@/core/profile/types";
 import { addView, deleteView, reconcileViews, renameView, switchView, syncActiveView } from "@/core/profile/views";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
 
@@ -99,8 +100,8 @@ interface AppState {
   /** Puts the column order back to natural: base columns as parsed, then Derived Fields as they were added. */
   resetFieldOrder: () => void;
   renameField: (key: string, label: string) => void;
-  /** Moves a column to its own full-width line under each row, or back into the row. Part of the active view. */
-  toggleSecondLine: (key: string) => void;
+  /** Turns one display option of a column on or off (second line, color-coding...). Part of the active view. */
+  toggleColumnOption: (key: string, option: ColumnOption) => void;
   /** Sets a column's width in px, or puts it back to automatic when null. */
   setColumnWidth: (key: string, width: number | null) => void;
   setSearchState: (search: SearchState) => void;
@@ -381,13 +382,10 @@ export const useAppStore = create<AppState>((set, get) => {
       updateDisplay((display) => ({ ...display, fieldLabels: { ...display.fieldLabels, [key]: label } }));
     },
 
-    toggleSecondLine: (key) => {
+    toggleColumnOption: (key, option) => {
       updateDisplay((display) => {
-        const fieldOrder = currentFieldOrder(display, get().baseFieldNames);
-        const flagged = new Set(display.secondLineKeys ?? []);
-        if (!flagged.delete(key)) flagged.add(key);
-        const secondLineKeys = visibleInOrder(fieldOrder, flagged);
-        return { ...display, fieldOrder, secondLineKeys: secondLineKeys.length > 0 ? secondLineKeys : undefined };
+        const on = !hasColumnOption(display.columnOptions, key, option);
+        return { ...display, columnOptions: setColumnOption(display.columnOptions, key, option, on) };
       });
     },
 

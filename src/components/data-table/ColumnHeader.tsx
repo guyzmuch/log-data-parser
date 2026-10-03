@@ -11,6 +11,7 @@ import {
   DotsThreeVerticalIcon,
   EyeSlashIcon,
   GlobeIcon,
+  PaletteIcon,
   PencilSimpleIcon,
 } from "@phosphor-icons/react";
 import { PATTERN_LABELS } from "@/components/data-table/useDetectedPatterns";
@@ -27,6 +28,8 @@ import {
 import type { ColumnPatternKind } from "@/core/derived-fields/detectColumnPatterns";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
+import { MAX_COLOR_VALUES, type ColorFit } from "@/core/display/colorFit";
+import { hasColumnOption } from "@/core/profile/columnOptions";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
 
@@ -76,15 +79,17 @@ interface ColumnHeaderProps {
   fieldKey: string;
   /** Detected patterns for this column (base columns only). */
   detected: ColumnPatternKind[];
+  /** How well the column's values suit color-coding. */
+  colorFit?: ColorFit;
   isFirst: boolean;
   isLast: boolean;
 }
 
 /** A column's title cell: its name, what was detected in it, and a menu with everything you can do to the column. */
-export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHeaderProps) {
+export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: ColumnHeaderProps) {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const toggleFieldVisibility = useAppStore((s) => s.toggleFieldVisibility);
-  const toggleSecondLine = useAppStore((s) => s.toggleSecondLine);
+  const toggleColumnOption = useAppStore((s) => s.toggleColumnOption);
   const moveFieldUp = useAppStore((s) => s.moveFieldUp);
   const moveFieldDown = useAppStore((s) => s.moveFieldDown);
   const renameField = useAppStore((s) => s.renameField);
@@ -108,6 +113,13 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
   const hasJson = fromThisField.some((spec) => spec.kind === "json-key");
   const hasUnescape = fromThisField.some((spec) => spec.kind === "unescape");
 
+  // Color-coding suits a column with a handful of different values; with more than there are colors it is switched off
+  // (but a column that already has it on can always be turned back off).
+  const colorOn = hasColumnOption(activeProfile.display.columnOptions, fieldKey, "colorCode");
+  const colorSuggested = colorFit?.status === "good" && !colorOn;
+  const colorBlocked = colorFit?.status === "too-many" && !colorOn;
+  const colorBlockedHint = `Too many different values to tell apart by color: this column has more than ${MAX_COLOR_VALUES}. Works best with a handful, like a method or a level.`;
+
   const suggest = "bg-accent font-semibold";
   const detectedTag = <span className="ml-auto border border-border bg-background px-1 text-[0.6875rem] font-medium text-muted-foreground">detected</span>;
 
@@ -127,6 +139,15 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
         ) : (
           <span data-testid="column-label" data-label={label} title={label} className="min-w-0 truncate font-mono text-[0.8125rem] font-semibold">
             {label}
+          </span>
+        )}
+        {!renaming && colorSuggested && (
+          <span
+            data-testid="color-hint"
+            title={`Only ${colorFit?.distinct} different values: good for color-coding`}
+            className="border border-border bg-background px-1 text-[0.625rem] font-medium tracking-wide text-muted-foreground uppercase"
+          >
+            few values
           </span>
         )}
         {!renaming &&
@@ -179,10 +200,29 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
               <EyeSlashIcon />
               Hide column
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => toggleSecondLine(fieldKey)}>
+            <DropdownMenuItem onSelect={() => toggleColumnOption(fieldKey, "secondLine")}>
               <ArrowElbowDownRightIcon />
               Show on a second line
             </DropdownMenuItem>
+            {colorBlocked ? (
+              // A disabled item gets no pointer events, so the explanation hangs on a wrapper around it.
+              <div title={colorBlockedHint} data-testid="color-code-blocked">
+                <DropdownMenuItem disabled>
+                  <PaletteIcon />
+                  <span className="whitespace-nowrap">Color-code values</span>
+                  <span className="ml-auto text-xs whitespace-nowrap text-muted-foreground">over {MAX_COLOR_VALUES} values</span>
+                </DropdownMenuItem>
+              </div>
+            ) : (
+              <DropdownMenuItem
+                className={cn(colorSuggested && suggest)}
+                onSelect={() => toggleColumnOption(fieldKey, "colorCode")}
+              >
+                <PaletteIcon />
+                {colorOn ? "Stop color-coding" : "Color-code values"}
+                {colorSuggested && detectedTag}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem disabled={isFirst} onSelect={() => moveFieldUp(fieldKey)}>
               <ArrowLeftIcon />
               Move left

@@ -1,5 +1,6 @@
 import { isDerivedFieldSpec } from "@/core/derived-fields/isDerivedFieldSpec";
 import { DELIMITER_CANDIDATES } from "@/core/parsing/delimiter";
+import { normalizeColumnOptions } from "@/core/profile/columnOptions";
 import type { ParsingConfig } from "@/core/parsing/types";
 import type { DisplayConfig, Profile, ProfileView, SearchState } from "@/core/profile/types";
 
@@ -55,14 +56,14 @@ function normalizeDisplay(value: unknown): DisplayConfig | undefined {
   }
 
   const searchState = normalizeSearchState(v.searchState);
+  // `secondLineKeys` is what second-line columns were stored as before columnOptions existed.
+  const columnOptions = normalizeColumnOptions(v.columnOptions, v.secondLineKeys);
 
   return {
     ...(Object.keys(columnWidths).length > 0 ? { columnWidths } : {}),
     visibleFieldKeys: Array.isArray(v.visibleFieldKeys) ? v.visibleFieldKeys.filter((k) => typeof k === "string") : [],
     ...(Array.isArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder.filter((k) => typeof k === "string") } : {}),
-    ...(Array.isArray(v.secondLineKeys) && v.secondLineKeys.length > 0
-      ? { secondLineKeys: v.secondLineKeys.filter((k) => typeof k === "string") }
-      : {}),
+    ...(columnOptions ? { columnOptions } : {}),
     fieldLabels,
     // Unknown/legacy kinds are dropped rather than rejecting the whole Profile.
     derivedFieldSelections: Array.isArray(v.derivedFieldSelections) ? v.derivedFieldSelections.filter(isDerivedFieldSpec) : [],
@@ -80,12 +81,13 @@ function normalizeViews(value: unknown): ProfileView[] | undefined {
     const v = item as Record<string, unknown>;
     if (typeof v.id !== "string" || typeof v.name !== "string" || seenIds.has(v.id) || !isStringArray(v.visibleFieldKeys)) continue;
     seenIds.add(v.id);
+    const columnOptions = normalizeColumnOptions(v.columnOptions, v.secondLineKeys);
     views.push({
       id: v.id,
       name: v.name,
       visibleFieldKeys: v.visibleFieldKeys,
       ...(isStringArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder } : {}),
-      ...(isStringArray(v.secondLineKeys) && v.secondLineKeys.length > 0 ? { secondLineKeys: v.secondLineKeys } : {}),
+      ...(columnOptions ? { columnOptions } : {}),
     });
   }
   return views.length > 0 ? views : undefined;

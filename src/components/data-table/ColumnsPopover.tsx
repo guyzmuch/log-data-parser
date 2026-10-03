@@ -1,11 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowElbowDownRightIcon, ColumnsIcon, DotsSixVerticalIcon, EyeIcon, EyeSlashIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import {
+  ArrowElbowDownRightIcon,
+  ColumnsIcon,
+  DotsSixVerticalIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  MagnifyingGlassIcon,
+  PaletteIcon,
+} from "@phosphor-icons/react";
+import { useColorFit } from "@/components/data-table/useColorFit";
+import { MAX_COLOR_VALUES } from "@/core/display/colorFit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
+import { hasColumnOption } from "@/core/profile/columnOptions";
 import { currentFieldOrder } from "@/core/profile/fieldOrder";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
@@ -22,7 +33,8 @@ export function ColumnsPopover() {
   const showAllFields = useAppStore((s) => s.showAllFields);
   const hideAllFields = useAppStore((s) => s.hideAllFields);
   const resetFieldOrder = useAppStore((s) => s.resetFieldOrder);
-  const toggleSecondLine = useAppStore((s) => s.toggleSecondLine);
+  const toggleColumnOption = useAppStore((s) => s.toggleColumnOption);
+  const colorFits = useColorFit();
 
   const [query, setQuery] = useState("");
   const [dragKey, setDragKey] = useState<string | null>(null);
@@ -34,7 +46,7 @@ export function ColumnsPopover() {
   const labelOf = (key: string) => fieldLabels[key] ?? key;
   const sourceByDerivedKey = new Map(derivedFieldSelections.map((spec) => [derivedFieldKey(spec), spec.sourceFieldKey]));
   const visible = new Set(visibleFieldKeys);
-  const secondLine = new Set(activeProfile.display.secondLineKeys);
+  const columnOptions = activeProfile.display.columnOptions;
   // The full column order: a hidden column stays where it is (dimmed) instead of dropping to the bottom.
   const rows = currentFieldOrder(activeProfile.display, baseFieldNames);
 
@@ -86,7 +98,11 @@ export function ColumnsPopover() {
         <ul className="max-h-80 overflow-y-auto" aria-label="Columns">
           {listed.map((key) => {
             const isShown = visible.has(key);
-            const onSecondLine = secondLine.has(key);
+            const onSecondLine = hasColumnOption(columnOptions, key, "secondLine");
+            const fit = colorFits.get(key);
+            const colorOn = hasColumnOption(columnOptions, key, "colorCode");
+            const colorSuggested = fit?.status === "good" && !colorOn;
+            const colorBlocked = fit?.status === "too-many" && !colorOn;
             const source = sourceByDerivedKey.get(key);
             return (
               <li
@@ -139,7 +155,7 @@ export function ColumnsPopover() {
                   aria-label={`${onSecondLine ? "Show in the row" : "Show on a second line"}: ${labelOf(key)}`}
                   aria-pressed={onSecondLine}
                   title={onSecondLine ? "On a second line — click to put it back in the row" : "Show on a second line under the row"}
-                  onClick={() => toggleSecondLine(key)}
+                  onClick={() => toggleColumnOption(key, "secondLine")}
                   className={cn(
                     "grid size-6 shrink-0 place-items-center outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring",
                     onSecondLine ? "bg-accent text-foreground" : "text-muted-foreground",
@@ -147,6 +163,31 @@ export function ColumnsPopover() {
                 >
                   <ArrowElbowDownRightIcon className="size-4" />
                 </button>
+                <span
+                  title={
+                    colorBlocked
+                      ? `Too many different values to tell apart by color: more than ${MAX_COLOR_VALUES}`
+                      : colorOn
+                        ? "Color-coded — click to stop"
+                        : colorSuggested
+                          ? `Only ${fit?.distinct} different values: good for color-coding`
+                          : "Color each different value"
+                  }
+                >
+                  <button
+                    type="button"
+                    disabled={colorBlocked}
+                    aria-label={`${colorOn ? "Stop color-coding" : "Color-code values"}: ${labelOf(key)}`}
+                    aria-pressed={colorOn}
+                    onClick={() => toggleColumnOption(key, "colorCode")}
+                    className={cn(
+                      "grid size-6 shrink-0 place-items-center outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35",
+                      colorOn ? "bg-accent text-foreground" : colorSuggested ? "font-semibold text-foreground ring-1 ring-border" : "text-muted-foreground",
+                    )}
+                  >
+                    <PaletteIcon className="size-4" />
+                  </button>
+                </span>
                 {source !== undefined && (
                   <span className="shrink-0 text-[0.6875rem] text-muted-foreground">from {labelOf(source)}</span>
                 )}
@@ -171,7 +212,7 @@ export function ColumnsPopover() {
           {listed.length === 0 && <li className="px-2 py-3 text-sm text-muted-foreground">No column matches “{query}”.</li>}
         </ul>
         <p className="border-t border-border px-1 pt-2 text-xs text-muted-foreground">
-          Drag to reorder. A hidden column keeps its place. The arrow puts a column on its own line under each row.
+          Drag to reorder. A hidden column keeps its place. The arrow puts a column on its own line under each row; the palette gives each different value its own color.
         </p>
       </PopoverContent>
     </Popover>
