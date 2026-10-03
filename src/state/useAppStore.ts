@@ -13,6 +13,7 @@ import { createProfile } from "@/core/profile/createProfile";
 import { currentFieldOrder, moveBefore, naturalFieldOrder, visibleInOrder } from "@/core/profile/fieldOrder";
 import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
 import type { DisplayConfig, Profile, SearchState } from "@/core/profile/types";
+import { addView, deleteView, reconcileViews, renameView, switchView, syncActiveView } from "@/core/profile/views";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
 
 /** How many leading Records are inspected when discovering JSON keys. */
@@ -67,6 +68,13 @@ interface AppState {
    * into a new user Profile "<name> (copy)" and makes that one active.
    */
   saveCurrentView: () => void;
+  /** Shows another of the active Profile's views (a saved column layout). Not persisted until "Save view". */
+  switchView: (viewId: string) => void;
+  /** Adds a view starting as a copy of the columns on screen, and switches to it. Not persisted until "Save view". */
+  addView: (name: string) => void;
+  renameView: (viewId: string, name: string) => void;
+  /** Removes a view; the last one can't be removed. */
+  deleteView: (viewId: string) => void;
   /** Hides a Profile (built-in or user) from the picker's normal view. Persists across reloads. */
   hideProfile: (id: string) => void;
   /** Reverses hideProfile. */
@@ -87,6 +95,8 @@ interface AppState {
   /** Puts the column order back to natural: base columns as parsed, then Derived Fields as they were added. */
   resetFieldOrder: () => void;
   renameField: (key: string, label: string) => void;
+  /** Sets a column's width in px, or puts it back to automatic when null. */
+  setColumnWidth: (key: string, width: number | null) => void;
   setSearchState: (search: SearchState) => void;
 
   /**
@@ -126,7 +136,7 @@ export const useAppStore = create<AppState>((set, get) => {
   function updateDisplay(update: (display: DisplayConfig) => DisplayConfig) {
     const profile = get().activeProfile;
     if (!profile) return;
-    set({ activeProfile: { ...profile, display: update(profile.display) } });
+    set({ activeProfile: syncActiveView({ ...profile, display: update(profile.display) }) });
   }
 
   /**
@@ -157,7 +167,7 @@ export const useAppStore = create<AppState>((set, get) => {
 
     set({
       records: applyDerivedFields(records, derivedFieldSelections),
-      activeProfile: {
+      activeProfile: syncActiveView({
         ...activeProfile,
         display: {
           ...activeProfile.display,
@@ -165,7 +175,7 @@ export const useAppStore = create<AppState>((set, get) => {
           fieldOrder,
           visibleFieldKeys: visibleInOrder(fieldOrder, shown),
         },
-      },
+      }),
     });
   }
 
@@ -214,7 +224,7 @@ export const useAppStore = create<AppState>((set, get) => {
       const display = reconcileDisplay(profile.display, baseFieldNames);
 
       set({
-        activeProfile: { ...profile, display },
+        activeProfile: reconcileViews({ ...profile, display }, baseFieldNames),
         baseFieldNames,
         records: applyDerivedFields(baseRecords, display.derivedFieldSelections),
         hiddenRecordIndexes: new Set(),
@@ -239,11 +249,31 @@ export const useAppStore = create<AppState>((set, get) => {
       if (!profile) return;
 
       const toSave: Profile = isBuiltInProfile(profile)
-        ? createProfile({ name: `${profile.name} (copy)`, parsing: profile.parsing, display: profile.display })
+        ? { ...createProfile({ name: `${profile.name} (copy)`, parsing: profile.parsing, display: profile.display }), views: profile.views, activeViewId: profile.activeViewId }
         : { ...profile, updatedAt: new Date().toISOString() };
 
       saveProfile(toSave);
       set({ activeProfile: toSave, savedProfiles: listProfiles() });
+    },
+
+    switchView: (viewId) => {
+      const profile = get().activeProfile;
+      if (profile) set({ activeProfile: switchView(profile, viewId, get().baseFieldNames) });
+    },
+
+    addView: (name) => {
+      const profile = get().activeProfile;
+      if (profile) set({ activeProfile: addView(profile, crypto.randomUUID(), name, get().baseFieldNames) });
+    },
+
+    renameView: (viewId, name) => {
+      const profile = get().activeProfile;
+      if (profile) set({ activeProfile: renameView(profile, viewId, name) });
+    },
+
+    deleteView: (viewId) => {
+      const profile = get().activeProfile;
+      if (profile) set({ activeProfile: deleteView(profile, viewId, get().baseFieldNames) });
     },
 
     hideProfile: (id) => {
@@ -319,6 +349,15 @@ export const useAppStore = create<AppState>((set, get) => {
 
     renameField: (key, label) => {
       updateDisplay((display) => ({ ...display, fieldLabels: { ...display.fieldLabels, [key]: label } }));
+    },
+
+    setColumnWidth: (key, width) => {
+      updateDisplay((display) => {
+        const columnWidths = { ...display.columnWidths };
+        if (width === null) delete columnWidths[key];
+        else columnWidths[key] = Math.round(width);
+        return { ...display, columnWidths };
+      });
     },
 
     setSearchState: (search) => {

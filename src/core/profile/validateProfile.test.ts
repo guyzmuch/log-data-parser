@@ -100,3 +100,29 @@ describe("normalizeProfile", () => {
     expect(display?.fieldLabels).toEqual({ a: "A" });
   });
 });
+
+describe("normalizeProfile views", () => {
+  it("keeps well-formed views and a matching activeViewId", () => {
+    const views = [
+      { id: "a", name: "A", visibleFieldKeys: ["a"], fieldOrder: ["a", "b"] },
+      { id: "b", name: "B", visibleFieldKeys: ["b"] },
+    ];
+    const result = normalizeProfile({ ...validProfile(), views, activeViewId: "b" });
+    expect(result?.views).toEqual(views);
+    expect(result?.activeViewId).toBe("b");
+  });
+
+  it("drops malformed and duplicate views, and an activeViewId that matches none", () => {
+    const result = normalizeProfile({
+      ...validProfile(),
+      views: [{ id: "a", name: "A", visibleFieldKeys: ["a"] }, { id: "a", name: "dup", visibleFieldKeys: [] }, { id: 3 }, "x"],
+      activeViewId: "zzz",
+    });
+    expect(result?.views).toEqual([{ id: "a", name: "A", visibleFieldKeys: ["a"] }]);
+    expect(result).not.toHaveProperty("activeViewId");
+  });
+
+  it("leaves views out when none are usable", () => {
+    expect(normalizeProfile({ ...validProfile(), views: [{}] })).not.toHaveProperty("views");
+  });
+});

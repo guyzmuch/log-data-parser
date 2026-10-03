@@ -11,6 +11,8 @@ export interface WizardChoices {
   delimiter: DelimiterLabel;
   header?: boolean;
   stripQuotes?: boolean;
+  /** Defaults to the value of stripQuotes. */
+  trimCells?: boolean;
 }
 
 /** Whitespace-collapsed text: rendered HTML hides padding, and Intl may emit narrow no-break spaces. */
@@ -69,8 +71,11 @@ export async function selectDelimiter(page: Page, label: DelimiterLabel) {
 export async function configureWizard(page: Page, choices: WizardChoices) {
   await selectDelimiter(page, choices.delimiter);
   await setCheckbox(page, "First row is a header", choices.header ?? false);
-  // "Trim cells & strip quotes", or just "Trim cells" when CSV quoting rules are on.
-  await setCheckbox(page, "Trim cells", choices.stripQuotes ?? false);
+  // Trimming is on by default in the wizard; tests ask for it explicitly, tied to stripQuotes unless said otherwise.
+  await setCheckbox(page, "Trim cells", choices.trimCells ?? choices.stripQuotes ?? false);
+  // "Strip surrounding quotes" isn't offered when CSV quoting rules are on (the parser already removes them).
+  const quotes = page.getByRole("dialog").getByRole("checkbox", { name: "Strip surrounding quotes" });
+  if ((await quotes.count()) > 0) await setCheckbox(page, "Strip surrounding quotes", choices.stripQuotes ?? false);
 }
 
 export async function saveWizard(page: Page) {

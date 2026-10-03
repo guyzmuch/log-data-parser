@@ -71,17 +71,17 @@ test.describe("a .csv file", () => {
     await expect(page.getByRole("dialog")).toContainText("sampled line");
   });
 
-  test("the trim option changes its name, because the parser already removes the quotes", async ({ page }) => {
+  test("the quote-stripping option is only offered when the parser doesn't already remove the quotes", async ({ page }) => {
     await page.goto("/");
     await uploadSample(page, QUOTED_FILE);
     await openWizard(page);
 
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("checkbox", { name: "Trim cells", exact: false })).toBeVisible();
-    await expect(dialog).not.toContainText("strip quotes");
+    await expect(dialog.getByRole("checkbox", { name: "Trim cells" })).toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "Strip surrounding quotes" })).toHaveCount(0);
 
     await quotedFields(page).uncheck();
-    await expect(dialog.getByRole("checkbox", { name: "Trim cells & strip quotes" })).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "Strip surrounding quotes" })).toBeVisible();
   });
 
   test("the built-in CSV profile uses CSV quoting rules too", async ({ page }) => {
@@ -152,6 +152,7 @@ test.describe("CSV export", () => {
     await uploadSample(page, QUOTED_FILE);
     await openWizard(page);
     await setCheckbox(page, "First row is a header", true);
+    await setCheckbox(page, "Trim cells", false);
     await saveWizard(page);
 
     const lines = await exportCsvLines(page);

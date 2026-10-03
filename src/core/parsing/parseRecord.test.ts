@@ -14,6 +14,32 @@ function baseConfig(overrides: Partial<DelimiterParsingConfig> = {}): DelimiterP
   };
 }
 
+describe("cell trimming", () => {
+  const values = (raw: string, overrides: Partial<DelimiterParsingConfig>) =>
+    parseRecord({ index: 0, raw }, baseConfig(overrides)).fields.map((f) => f.value);
+
+  it("trims cells when trimCells is on, without touching quotes", () => {
+    expect(values(' a , "b" ', { trimCells: true })).toEqual(["a", '"b"']);
+  });
+
+  it("keeps blanks when trimCells is off", () => {
+    expect(values(" a , b ", { trimCells: false })).toEqual([" a ", " b "]);
+  });
+
+  it("strips quotes without trimming when trimCells is off", () => {
+    expect(values('"a", b ', { trimCells: false, stripQuotes: true })).toEqual(["a", " b "]);
+  });
+
+  it("trims and strips quotes when both are on", () => {
+    expect(values(' "a" , b ', { trimCells: true, stripQuotes: true })).toEqual(["a", "b"]);
+  });
+
+  it("older profiles without trimCells trim exactly when they strip quotes", () => {
+    expect(values(" a ", { stripQuotes: true })).toEqual(["a"]);
+    expect(values(" a ", { stripQuotes: false })).toEqual([" a "]);
+  });
+});
+
 describe("parseRecord", () => {
   it("splits a line into generically-named Fields when there are no fieldNames", () => {
     const result = parseRecord({ index: 0, raw: "a,b,c" }, baseConfig());

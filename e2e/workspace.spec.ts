@@ -93,6 +93,17 @@ test.describe("column header menu", () => {
     await expect(page.getByRole("menuitem", { name: /Parse as date.*detected/ })).toHaveCount(0);
   });
 
+  test("Rename column focuses the input with its text selected, so typing replaces the name", async ({ page }) => {
+    await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
+    await clickColumnAction(page, 1, "Rename column");
+
+    const input = headerCell(page, 1).getByRole("textbox", { name: "Column name" });
+    await expect(input).toBeFocused();
+    await page.keyboard.type("machine");
+    await page.keyboard.press("Enter");
+    await expect(headerCell(page, 1).getByTestId("column-label")).toHaveText("machine");
+  });
+
   test("a derived column has no derive actions and names its source", async ({ page }) => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
     await clickColumnAction(page, 0, "Parse as date");

@@ -10,15 +10,18 @@ const LOOKS_LIKE_A_DATE: RegExp[] = [
   MONTH_OR_DAY_NAME,
 ];
 
-// 9-10 digits: seconds (1973 to 2286). 12-13 digits: milliseconds (same span).
-// 11 digits is ambiguous and 8 or fewer is too short to be a timestamp, so both are rejected.
-const EPOCH_SECONDS_DIGITS = { min: 9, max: 10 };
-const EPOCH_MILLIS_DIGITS = { min: 12, max: 13 };
+// A whole number only counts as a timestamp if, read as Unix seconds or as milliseconds, it lands
+// between these years. Anything else (ids, counts, ports, durations, 9-digit serials...) is just a number.
+// The two readings can't clash: seconds for these years are ~9.5e8 to 4.1e9, milliseconds ~9.5e11 to 4.1e12.
+const EPOCH_FIRST_YEAR = 2000;
+const EPOCH_LAST_YEAR = 2100; // exclusive
+const EPOCH_MIN_SECONDS = Date.UTC(EPOCH_FIRST_YEAR, 0, 1) / 1000;
+const EPOCH_MAX_SECONDS = Date.UTC(EPOCH_LAST_YEAR, 0, 1) / 1000;
 
 /**
  * Parses a Field's string value as a date, covering the v1-agreed minimal
- * set: Unix epoch (9-10 digit seconds, 12-13 digit milliseconds) and whatever `Date.parse`
- * recognizes (chiefly ISO 8601) — see Q14 from the original design pass.
+ * set: Unix epoch (seconds or milliseconds, years 2000 to 2099 — see above) and whatever
+ * `Date.parse` recognizes (chiefly ISO 8601) — see Q14 from the original design pass.
  *
  * `new Date(value)` behaves very differently for a numeric STRING vs a
  * NUMBER: `new Date("1700000000")` is Invalid Date, but `new Date(1700000000)`
@@ -30,14 +33,12 @@ export function parseFlexibleDate(value: string): Date {
   const trimmed = value.trim();
 
   if (PURE_DIGITS.test(trimmed)) {
-    // Only realistic epoch lengths count as timestamps. Short integers (ids,
-    // counts, durations, ports...) must NOT read as dates in January 1970.
-    const isSeconds = trimmed.length >= EPOCH_SECONDS_DIGITS.min && trimmed.length <= EPOCH_SECONDS_DIGITS.max;
-    const isMilliseconds = trimmed.length >= EPOCH_MILLIS_DIGITS.min && trimmed.length <= EPOCH_MILLIS_DIGITS.max;
-    if (!isSeconds && !isMilliseconds) return new Date(Number.NaN);
-
+    // Only realistic timestamps count. Short integers (ids, counts, durations, ports...)
+    // must NOT read as dates in January 1970.
     const asNumber = Number(trimmed);
-    return new Date(isMilliseconds ? asNumber : asNumber * 1000);
+    if (asNumber >= EPOCH_MIN_SECONDS && asNumber < EPOCH_MAX_SECONDS) return new Date(asNumber * 1000);
+    if (asNumber >= EPOCH_MIN_SECONDS * 1000 && asNumber < EPOCH_MAX_SECONDS * 1000) return new Date(asNumber);
+    return new Date(Number.NaN);
   }
 
   // V8's legacy Date parser is far too forgiving: `new Date("host-01")` is

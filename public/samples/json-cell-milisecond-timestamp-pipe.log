@@ -1,0 +1,9 @@
+timestamp | host | payload | level
+ 1768480200123 | "host-01" | "{\"user\":\"alice\",\"action\":\"login\",\"count\":3}" | "error" 
+ 1768480256379 | "host-02" | "{\"user\":\"bob\",\"action\":\"logout\",\"count\":12}" | "error" 
+ 1768480318456 | "host-03" | "{\"user\":\"carol\",\"action\":\"upload\",\"count\":7}" | "warning" 
+ 1768480386567 | "host-04" | "{\"user\":\"dave\",\"action\":\"delete\",\"count\":1}" | "error" 
+ 1768480460678 | "host-05" | "{\"user\":\"erin\",\"action\":\"download\",\"count\":25}" | "warning" 
+ 1768480540789 | "host-06" | "{\"user\":\"frank\",\"action\":\"login\",\"count\":0}" | "error" 
+ 1768480626890 | "host-07" | "{\"user\":\"grace\",\"action\":\"update\",\"count\":9}" | "info" 
+ 1768480718000 | "host-08" | "{\"user\":\"heidi\",\"action\":\"search\",\"count\":42}" | "debug" 

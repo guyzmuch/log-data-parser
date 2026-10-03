@@ -22,8 +22,25 @@ export interface DisplayConfig {
    */
   fieldOrder?: string[];
   fieldLabels: Record<string, string>;
+  /** Column widths in px the user dragged to, by Field key. A column without an entry gets an automatic width. Shared by all views. */
+  columnWidths?: Record<string, number>;
   derivedFieldSelections: DerivedFieldSpec[];
   searchState?: SearchState;
+}
+
+/** The part of a display config a view owns: which columns are shown, and in what order (hidden ones included). */
+export interface ViewColumns {
+  visibleFieldKeys: string[];
+  fieldOrder?: string[];
+}
+
+/**
+ * A named column layout of a Profile. Labels, Derived Fields and search are shared by all of a
+ * Profile's views; only the columns differ. The active view's columns are mirrored in `Profile.display`.
+ */
+export interface ProfileView extends ViewColumns {
+  id: string;
+  name: string;
 }
 
 /** The single saved, reusable unit combining parsing config + display config (see Profile in CONTEXT.md). */
@@ -32,6 +49,10 @@ export interface Profile {
   name: string;
   parsing: ParsingConfig;
   display: DisplayConfig;
+  /** Saved column layouts. Absent on Profiles saved before views existed; applying one creates a "Default" view from `display`. */
+  views?: ProfileView[];
+  /** The view `display` currently mirrors; the one shown when the Profile is applied. */
+  activeViewId?: string;
   /** ISO 8601 */
   createdAt: string;
   /** ISO 8601 */

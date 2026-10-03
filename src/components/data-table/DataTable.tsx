@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type MouseEvent, type ReactNode } from "react";
+import { useMemo, useRef, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ColumnHeader } from "@/components/data-table/ColumnHeader";
 import { useDetectedPatterns } from "@/components/data-table/useDetectedPatterns";
 import { useVisibleRecords } from "@/components/data-table/useVisibleRecords";
@@ -59,6 +59,46 @@ const HINT_CHIP_CH = 9;
 const LEADING_COLUMN_WIDTH = "6rem";
 const CELL_PADDING = "1.5rem";
 
+/** Narrowest and widest a column can be dragged to, in px. */
+const RESIZE_MIN_PX = 80;
+const RESIZE_MAX_PX = 1600;
+
+/** A grip on a header's right edge: drag to resize the column, double-click to put it back to automatic. */
+function ResizeHandle({ fieldKey, label }: { fieldKey: string; label: string }) {
+  const setColumnWidth = useAppStore((s) => s.setColumnWidth);
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    const cell = event.currentTarget.parentElement;
+    if (!cell) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = { startX: event.clientX, startWidth: cell.getBoundingClientRect().width };
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!drag.current) return;
+    const width = drag.current.startWidth + event.clientX - drag.current.startX;
+    setColumnWidth(fieldKey, Math.min(RESIZE_MAX_PX, Math.max(RESIZE_MIN_PX, width)));
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize column ${label}`}
+      title="Drag to resize, double-click to reset"
+      onClick={(event) => event.stopPropagation()}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+      onDoubleClick={() => setColumnWidth(fieldKey, null)}
+      className="absolute inset-y-0 right-0 z-20 w-2 cursor-col-resize touch-none after:absolute after:inset-y-2 after:right-0 after:w-px after:bg-border hover:after:w-0.5 hover:after:bg-ring"
+    />
+  );
+}
+
 function Spacer({ height, columns }: { height: number; columns: number }) {
   return (
     <tr aria-hidden="true" data-spacer="true">
@@ -84,7 +124,7 @@ export function DataTable() {
     return <p className="px-5 text-sm text-muted-foreground">No data parsed yet.</p>;
   }
 
-  const { visibleFieldKeys, fieldLabels, searchState, derivedFieldSelections } = activeProfile.display;
+  const { visibleFieldKeys, fieldLabels, searchState, derivedFieldSelections, columnWidths } = activeProfile.display;
   const term = searchState?.term ?? "";
   const mode = searchState?.mode ?? "highlight";
   const derivedByKey = new Map(derivedFieldSelections.map((spec) => [derivedFieldKey(spec), spec]));
@@ -157,7 +197,7 @@ export function DataTable() {
             <col
               key={key}
               className="font-mono text-[0.8125rem]"
-              style={{ width: `calc(${columnChars(key)}ch + ${CELL_PADDING})` }}
+              style={{ width: columnWidths?.[key] ?? `calc(${columnChars(key)}ch + ${CELL_PADDING})` }}
             />
           ))}
           <col />
@@ -179,7 +219,7 @@ export function DataTable() {
             {visibleFieldKeys.map((key, position) => (
               <TableHead
                 key={key}
-                className={cn("sticky top-0 z-10 border-b bg-muted px-3", derivedByKey.has(key) && DERIVED_HEAD)}
+                className={cn("sticky top-0 z-10 overflow-hidden border-b bg-muted px-3", derivedByKey.has(key) && DERIVED_HEAD)}
               >
                 <ColumnHeader
                   fieldKey={key}
@@ -187,6 +227,7 @@ export function DataTable() {
                   isFirst={position === 0}
                   isLast={position === visibleFieldKeys.length - 1}
                 />
+                <ResizeHandle fieldKey={key} label={labelOf(key)} />
               </TableHead>
             ))}
             <TableHead aria-hidden="true" className="sticky top-0 z-10 border-b bg-muted p-0" />
@@ -226,7 +267,7 @@ export function DataTable() {
                 }
                 const value = field?.value ?? "";
                 return (
-                  <TableCell key={key} className={cellClass} title={value.length > COLUMN_MAX_CH ? value : undefined}>
+                  <TableCell key={key} className={cellClass} title={value.length > COLUMN_MAX_CH || columnWidths?.[key] ? value : undefined}>
                     {mode === "highlight" ? highlightMatches(value, term) : value}
                   </TableCell>
                 );

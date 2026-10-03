@@ -1,7 +1,7 @@
 import { isDerivedFieldSpec } from "@/core/derived-fields/isDerivedFieldSpec";
 import { DELIMITER_CANDIDATES } from "@/core/parsing/delimiter";
 import type { ParsingConfig } from "@/core/parsing/types";
-import type { DisplayConfig, Profile, SearchState } from "@/core/profile/types";
+import type { DisplayConfig, Profile, ProfileView, SearchState } from "@/core/profile/types";
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -17,6 +17,7 @@ function normalizeParsing(value: unknown): ParsingConfig | undefined {
     !(DELIMITER_CANDIDATES as string[]).includes(v.delimiter) ||
     typeof v.hasHeaderRow !== "boolean" ||
     typeof v.stripQuotes !== "boolean" ||
+    (v.trimCells !== undefined && typeof v.trimCells !== "boolean") ||
     (v.quoteAware !== undefined && typeof v.quoteAware !== "boolean") ||
     typeof v.trimBoundaryPartials !== "boolean" ||
     typeof v.expectedFieldCount !== "number" ||
@@ -46,9 +47,17 @@ function normalizeDisplay(value: unknown): DisplayConfig | undefined {
     }
   }
 
+  const columnWidths: Record<string, number> = {};
+  if (typeof v.columnWidths === "object" && v.columnWidths !== null) {
+    for (const [key, width] of Object.entries(v.columnWidths)) {
+      if (typeof width === "number" && Number.isFinite(width) && width > 0) columnWidths[key] = width;
+    }
+  }
+
   const searchState = normalizeSearchState(v.searchState);
 
   return {
+    ...(Object.keys(columnWidths).length > 0 ? { columnWidths } : {}),
     visibleFieldKeys: Array.isArray(v.visibleFieldKeys) ? v.visibleFieldKeys.filter((k) => typeof k === "string") : [],
     ...(Array.isArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder.filter((k) => typeof k === "string") } : {}),
     fieldLabels,
@@ -56,6 +65,26 @@ function normalizeDisplay(value: unknown): DisplayConfig | undefined {
     derivedFieldSelections: Array.isArray(v.derivedFieldSelections) ? v.derivedFieldSelections.filter(isDerivedFieldSpec) : [],
     ...(searchState ? { searchState } : {}),
   };
+}
+
+/** Keeps the well-formed views; undefined when none survive (the Profile then just has no saved views). */
+function normalizeViews(value: unknown): ProfileView[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const seenIds = new Set<string>();
+  const views: ProfileView[] = [];
+  for (const item of value) {
+    if (typeof item !== "object" || item === null) continue;
+    const v = item as Record<string, unknown>;
+    if (typeof v.id !== "string" || typeof v.name !== "string" || seenIds.has(v.id) || !isStringArray(v.visibleFieldKeys)) continue;
+    seenIds.add(v.id);
+    views.push({
+      id: v.id,
+      name: v.name,
+      visibleFieldKeys: v.visibleFieldKeys,
+      ...(isStringArray(v.fieldOrder) ? { fieldOrder: v.fieldOrder } : {}),
+    });
+  }
+  return views.length > 0 ? views : undefined;
 }
 
 /**
@@ -83,5 +112,17 @@ export function normalizeProfile(value: unknown): Profile | undefined {
   const display = normalizeDisplay(v.display);
   if (!parsing || !display) return undefined;
 
-  return { id: v.id, name: v.name, parsing, display, createdAt: v.createdAt, updatedAt: v.updatedAt };
+  const views = normalizeViews(v.views);
+  const activeViewId = views?.some((view) => view.id === v.activeViewId) ? (v.activeViewId as string) : undefined;
+
+  return {
+    id: v.id,
+    name: v.name,
+    parsing,
+    display,
+    ...(views ? { views } : {}),
+    ...(activeViewId ? { activeViewId } : {}),
+    createdAt: v.createdAt,
+    updatedAt: v.updatedAt,
+  };
 }

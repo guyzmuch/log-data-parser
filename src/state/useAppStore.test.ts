@@ -443,3 +443,76 @@ describe("dataset lifecycle and the wizard", () => {
     expect([...state().hiddenRecordIndexes]).toEqual([0]);
   });
 });
+
+describe("views", () => {
+  const shown = () => state().activeProfile!.display.visibleFieldKeys;
+
+  beforeEach(() => {
+    load();
+  });
+
+  it("gives a Profile without views a Default view mirroring its columns", () => {
+    const { views, activeViewId } = state().activeProfile!;
+    expect(views).toHaveLength(1);
+    expect(views![0]).toMatchObject({ name: "Default", visibleFieldKeys: ["id", "payload", "when"] });
+    expect(activeViewId).toBe(views![0].id);
+  });
+
+  it("keeps each view's columns apart while labels stay shared", () => {
+    state().toggleFieldVisibility("when"); // Default now: id, payload
+    state().addView("Ids only"); // starts as a copy of what's on screen
+    state().hideAllFields();
+    state().toggleFieldVisibility("id");
+    state().renameField("id", "Identifier");
+    expect(shown()).toEqual(["id"]);
+
+    const [first, second] = state().activeProfile!.views!;
+    state().switchView(first.id);
+    expect(shown()).toEqual(["id", "payload"]);
+    expect(state().activeProfile!.display.fieldLabels).toEqual({ id: "Identifier" });
+
+    state().switchView(second.id);
+    expect(shown()).toEqual(["id"]);
+  });
+
+  it("a Derived Field added in one view is hidden in the others", () => {
+    state().addView("Other");
+    state().addUnescapeDerivedField("payload");
+    expect(shown()).toContain("payload (unescaped)");
+
+    state().switchView(state().activeProfile!.views![0].id);
+    expect(shown()).not.toContain("payload (unescaped)");
+    expect(state().activeProfile!.display.fieldOrder).toContain("payload (unescaped)");
+  });
+
+  it("renames and deletes views, but keeps the last one", () => {
+    state().addView("Second");
+    const [first, second] = state().activeProfile!.views!;
+    state().renameView(second.id, "Renamed");
+    expect(state().activeProfile!.views![1].name).toBe("Renamed");
+
+    state().deleteView(second.id); // the active one: falls back to the first
+    expect(state().activeProfile!.activeViewId).toBe(first.id);
+    expect(state().activeProfile!.views).toHaveLength(1);
+
+    state().deleteView(first.id);
+    expect(state().activeProfile!.views).toHaveLength(1);
+  });
+
+  it("saves every view and reopens on the active one after a reload", () => {
+    state().addView("Short");
+    state().hideAllFields();
+    state().toggleFieldVisibility("when");
+    state().saveCurrentView();
+
+    const saved = listProfiles()[0];
+    expect(saved.views!.map((v) => v.name)).toEqual(["Default", "Short"]);
+
+    state().loadDataset(RAW);
+    state().applyProfile(saved);
+    expect(state().activeProfile!.views![1].name).toBe("Short");
+    expect(shown()).toEqual(["when"]);
+    state().switchView(saved.views![0].id);
+    expect(shown()).toEqual(["id", "payload", "when"]);
+  });
+});

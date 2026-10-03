@@ -20,18 +20,22 @@ describe("parseFlexibleDate", () => {
   });
 
   it("rejects short integers (ids, counts, durations) instead of reading them as 1970 dates", () => {
-    for (const value of ["1", "2", "42", "2350", "8080", "12345678"]) {
+    for (const value of ["1", "2", "43", "42", "2350", "8080", "10321", "12345678"]) {
       expect(Number.isNaN(parseFlexibleDate(value).getTime()), value).toBe(true);
     }
   });
 
-  it("rejects an 11-digit integer (ambiguous between seconds and milliseconds)", () => {
-    expect(Number.isNaN(parseFlexibleDate("17827643515").getTime())).toBe(true);
+  it("rejects long integers that fall outside the 2000-2099 window (old serials, 11-digit values, far future)", () => {
+    for (const value of ["100000000", "123456789", "946684799", "17827643515", "100000000000", "4102444800", "4102444800000"]) {
+      expect(Number.isNaN(parseFlexibleDate(value).getTime()), value).toBe(true);
+    }
   });
 
-  it("accepts the 9-digit seconds and 12-digit milliseconds boundaries", () => {
-    expect(parseFlexibleDate("100000000").toISOString()).toBe("1973-03-03T09:46:40.000Z");
-    expect(parseFlexibleDate("100000000000").toISOString()).toBe("1973-03-03T09:46:40.000Z");
+  it("accepts epoch seconds and milliseconds at both edges of the 2000-2099 window", () => {
+    expect(parseFlexibleDate("946684800").toISOString()).toBe("2000-01-01T00:00:00.000Z");
+    expect(parseFlexibleDate("946684800000").toISOString()).toBe("2000-01-01T00:00:00.000Z");
+    expect(parseFlexibleDate("4102444799").toISOString()).toBe("2099-12-31T23:59:59.000Z");
+    expect(parseFlexibleDate("4102444799999").toISOString()).toBe("2099-12-31T23:59:59.999Z");
   });
 
   it("does not let V8's lenient parser turn words with a number into dates (host-01 is not 2001-01-01)", () => {

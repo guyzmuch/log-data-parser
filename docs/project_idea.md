@@ -33,37 +33,43 @@ That could be cool if we could connect it to a live logs, like connect it to a t
 v1's delimiter split is a plain string split, not quote-aware (a delimiter inside a quoted CSV value, e.g. `a,"b,c",d`, splits wrong). Could swap in a real CSV parser package specifically for uploaded `.csv` files later, while keeping the simple splitter for pasted/raw log text.
 
 
-## improvement seen while working
+## Done
 make the interface largeur
 Better ui for column selection
+Posibility to save multiple view for one profile
+when opening a new profile creation wizard the form should be cleared
+column should displayed for the top one to the bottom, and we should order the column by drag and drop
+only numbers that looks like timpstamps should be parsed as detec
+option to trim all the cell (but not by default, because it might be usefull)
+All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
+we sohuld be able to resize the column of the array, and data will have elipse at the end
+
+when parsing a column in a certain way, add the new column after the "parent" column instead of at the end of the column, and unmark the parent column to hide it (because by default, we would only want the parsed data, not the raw one)
+You could also display entry in 2 lines
+Posibility to add comment on each data line
+
+
+like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
+user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color). 
+
+## improvement seen while working
+
 columns selection should make the "shift" button work to unselect multiple column
 we should have an "hide all" column and "show all" columns button
 we should be able to search/filter column by name to active them or not (like in kibana)
-column should displayed for the top one to the bottom, and we should order the column by drag and drop
-Posibility to save multiple view for one profile
 once the data is parsed, we should remove the insertion fields (or maybe hide it in a tab or something)
-like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
 be able to duplicate a profile (so we start from a base)
 be able to sort the profile
-option to trim all the cell (but not by default, because it might be usefull)
 since we detect cell, maybe notify column that only have empty data
 be able to sort data by column (asc, desc)
-user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color). 
 maybe make the parsing of field via regex
 parse stack trace to multiline info (example error log in kibana)
 like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
-when opening a new profile creation wizard the form should be cleared
-All the cell (data and header) should be trimmed by default, but you can choose not to trimmed them via option
-when parsing a column in a certain way, add the new column after the "parent" column, and unmark the parent column to hide it (because by default, we would only want the parsed data, not the raw one)
 for the autodetected parsing of data, add some specific styling to the button that will do this (like a star or something) so it stand out
-we sohuld be able to resize the column of the array, and data will have elipse at the end
-You could also display entry in 2 lines
-Can change the font on some of the column (to have some info bigger
-Posibility to add comment on each data line
+Can change the font on some of the column (to have some info bigger)
 You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
 we can sort the table by column (asc/desc)
 Could we have something simple that learn from previous file name, and if the name of 3 different file are similare, the we proposed the parsing profile that was used most for this type of file name (like format, extension, first line, etc) when i say proposed, I just mean a suggestion of the parsing profile
-only numbers that looks like timpstamps should be parsed as timestamp
 
 
 ## to think over

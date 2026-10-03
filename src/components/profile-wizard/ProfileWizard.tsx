@@ -19,6 +19,7 @@ import { buildParsingPreview } from "@/core/parsing/buildParsingPreview";
 import { buildWizardSample, sampleWithFirst } from "@/core/parsing/buildWizardSample";
 import { detectDelimiter } from "@/core/parsing/detectDelimiter";
 import { parseDataset } from "@/core/parsing/parseDataset";
+import { trimsCells } from "@/core/parsing/parseRecord";
 import { toRawRows } from "@/core/parsing/parseRows";
 import type { Delimiter } from "@/core/parsing/types";
 import { isBuiltInProfile } from "@/core/profile/builtInProfiles";
@@ -136,6 +137,8 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
   const [delimiter, setDelimiter] = useState<Delimiter>(initialProfile?.parsing.delimiter ?? detectedDelimiter);
   const [hasHeaderRow, setHasHeaderRow] = useState(initialProfile?.parsing.hasHeaderRow ?? false);
   const [stripQuotes, setStripQuotes] = useState(initialProfile?.parsing.stripQuotes ?? false);
+  // Trimming is on for a new profile; an existing one shows what it actually does (older ones trim iff they strip quotes).
+  const [trimCells, setTrimCells] = useState(initialProfile ? trimsCells(initialProfile.parsing) : true);
   const [trimBoundaryPartials, setTrimBoundaryPartials] = useState(
     initialProfile?.parsing.trimBoundaryPartials ?? false,
   );
@@ -161,12 +164,13 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
         delimiter,
         hasHeaderRow,
         stripQuotes,
+        trimCells,
         trimBoundaryPartials,
         quoteAware,
         // Names a Profile was given (e.g. a built-in's) survive an edit; a header row overrides them.
         fieldNames: initialProfile?.parsing.fieldNames,
       }),
-    [sampleRows, delimiter, hasHeaderRow, stripQuotes, trimBoundaryPartials, quoteAware, initialProfile],
+    [sampleRows, delimiter, hasHeaderRow, stripQuotes, trimCells, trimBoundaryPartials, quoteAware, initialProfile],
   );
 
   function handleSave() {
@@ -244,15 +248,14 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
             <ToggleRow title="First row is a header" checked={hasHeaderRow} onCheckedChange={setHasHeaderRow}>
               Use the first row as column names.
             </ToggleRow>
-            <ToggleRow
-              title={quoteAware ? "Trim cells" : "Trim cells & strip quotes"}
-              checked={stripQuotes}
-              onCheckedChange={setStripQuotes}
-            >
-              {quoteAware
-                ? "Removes blanks around each cell."
-                : "Removes blanks around each cell, then one pair of surrounding quotes."}
+            <ToggleRow title="Trim cells" checked={trimCells} onCheckedChange={setTrimCells}>
+              Removes the blanks around each cell and column name. Turn off to keep them as they are.
             </ToggleRow>
+            {!quoteAware && (
+              <ToggleRow title="Strip surrounding quotes" checked={stripQuotes} onCheckedChange={setStripQuotes}>
+                Removes one pair of quotes around a cell or column name.
+              </ToggleRow>
+            )}
             <ToggleRow
               title="Drop a clipped first/last line"
               checked={trimBoundaryPartials}

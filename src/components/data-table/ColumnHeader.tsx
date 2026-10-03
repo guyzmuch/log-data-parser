@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -37,11 +37,12 @@ const DERIVED_KIND_LABELS: Record<DerivedFieldSpec["kind"], string> = {
 
 interface RenameInputProps {
   initial: string;
+  inputRef: RefObject<HTMLInputElement | null>;
   onCommit: (value: string) => void;
   onCancel: () => void;
 }
 
-function RenameInput({ initial, onCommit, onCancel }: RenameInputProps) {
+function RenameInput({ initial, inputRef, onCommit, onCancel }: RenameInputProps) {
   const [value, setValue] = useState(initial);
   const finished = useRef(false);
 
@@ -59,11 +60,10 @@ function RenameInput({ initial, onCommit, onCancel }: RenameInputProps) {
 
   return (
     <Input
-      autoFocus
+      ref={inputRef}
       aria-label="Column name"
       className="h-7 w-44 font-mono text-[0.8125rem]"
       value={value}
-      onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setValue(event.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={() => finish(true)}
@@ -93,6 +93,7 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
   const [renaming, setRenaming] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const keepFocusOffTrigger = useRef(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   if (!activeProfile) return null;
   const { fieldLabels, derivedFieldSelections } = activeProfile.display;
@@ -109,11 +110,12 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
   const detectedTag = <span className="ml-auto border border-border bg-background px-1 text-[0.6875rem] font-medium text-muted-foreground">detected</span>;
 
   return (
-    <div className="flex flex-col gap-0.5 py-1">
-      <div className="flex items-center gap-1.5">
+    <div className="flex min-w-0 flex-col gap-0.5 py-1">
+      <div className="flex min-w-0 items-center gap-1.5">
         {renaming ? (
           <RenameInput
             initial={label}
+            inputRef={renameInputRef}
             onCommit={(value) => {
               renameField(fieldKey, value.trim() === "" ? fieldKey : value.trim());
               setRenaming(false);
@@ -121,7 +123,7 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
             onCancel={() => setRenaming(false)}
           />
         ) : (
-          <span data-testid="column-label" data-label={label} className="font-mono text-[0.8125rem] font-semibold">
+          <span data-testid="column-label" data-label={label} title={label} className="min-w-0 truncate font-mono text-[0.8125rem] font-semibold">
             {label}
           </span>
         )}
@@ -151,10 +153,14 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
             align="start"
             className="w-64"
             onCloseAutoFocus={(event) => {
-              // After "Rename column" the input holds focus; don't hand it back to the menu trigger.
+              // After "Rename column", focus the input (with its text selected) instead of handing
+              // focus back to the menu trigger. It has to happen here: while the menu is open it
+              // keeps focus trapped, so an autoFocus on mount gets pulled away.
               if (keepFocusOffTrigger.current) {
                 event.preventDefault();
                 keepFocusOffTrigger.current = false;
+                renameInputRef.current?.focus();
+                renameInputRef.current?.select();
               }
             }}
           >
@@ -226,7 +232,7 @@ export function ColumnHeader({ fieldKey, detected, isFirst, isLast }: ColumnHead
       </div>
 
       {derivedSpec && (
-        <span className="text-[0.6875rem] font-normal text-muted-foreground">
+        <span className="truncate text-[0.6875rem] font-normal text-muted-foreground">
           from {labelOf(derivedSpec.sourceFieldKey)} · {DERIVED_KIND_LABELS[derivedSpec.kind]}
         </span>
       )}

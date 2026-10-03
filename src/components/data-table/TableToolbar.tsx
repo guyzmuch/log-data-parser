@@ -2,6 +2,7 @@
 
 import { ColumnsPopover } from "@/components/data-table/ColumnsPopover";
 import { SelectionChips } from "@/components/data-table/SelectionChips";
+import { ViewMenu } from "@/components/data-table/ViewMenu";
 import { ExportMenu } from "@/components/export-menu/ExportMenu";
 import { SearchBar } from "@/components/search-bar/SearchBar";
 
@@ -12,6 +13,7 @@ export function TableToolbar() {
       <SearchBar />
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <SelectionChips />
+        <ViewMenu />
         <ColumnsPopover />
         <ExportMenu />
       </div>

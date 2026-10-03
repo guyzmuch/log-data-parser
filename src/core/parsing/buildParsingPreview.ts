@@ -7,6 +7,8 @@ export interface DelimiterParsingChoices {
   delimiter: Delimiter;
   hasHeaderRow: boolean;
   stripQuotes: boolean;
+  /** Omitted keeps the legacy meaning (trim iff stripQuotes) and leaves `trimCells` out of the config. */
+  trimCells?: boolean;
   trimBoundaryPartials: boolean;
   /** CSV quoting rules; the rows handed in must have been split the same way. Omitted from the config when off. */
   quoteAware?: boolean;
@@ -32,6 +34,7 @@ export function buildParsingPreview(sampleRows: RawRow[], choices: DelimiterPars
     delimiter: choices.delimiter,
     hasHeaderRow: choices.hasHeaderRow,
     stripQuotes: choices.stripQuotes,
+    ...(choices.trimCells !== undefined ? { trimCells: choices.trimCells } : {}),
     ...(choices.quoteAware ? { quoteAware: true } : {}),
     trimBoundaryPartials: false,
     expectedFieldCount: 0,

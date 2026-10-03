@@ -123,11 +123,13 @@ test("'Hide selected' only acts on rows the filter currently shows", async ({ pa
   await expect(page.getByText(/rows? hidden/)).toHaveCount(0);
 });
 
-test("a new profile's wizard starts with its toggles off, whatever the last profile used", async ({ page }) => {
-  await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
+test("a new profile's wizard starts from its defaults, whatever the last profile used", async ({ page }) => {
+  await loadWithProfile(page, "json-cell-pipe.log", { ...CHOICES, trimCells: false });
 
   await openWizard(page);
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("checkbox", { name: "First row is a header" })).not.toBeChecked();
-  await expect(dialog.getByRole("checkbox", { name: "Trim cells & strip quotes" })).not.toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "Strip surrounding quotes" })).not.toBeChecked();
+  // Cells are trimmed unless the user turns it off.
+  await expect(dialog.getByRole("checkbox", { name: "Trim cells" })).toBeChecked();
 });
