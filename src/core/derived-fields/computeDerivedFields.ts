@@ -84,6 +84,26 @@ function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): F
 
 /** All Derived Fields a source Field produces from the specs that target it. */
 export function computeDerivedFields(field: Field, specs: DerivedFieldSpec[]): Field[] {
+  const targeting = specs.filter((spec) => spec.sourceFieldKey === field.key);
+  if (field.items) return targeting.map((spec) => computeOverItems(field, field.items!, spec));
+
   const parses: CellParses = {};
-  return specs.filter((spec) => spec.sourceFieldKey === field.key).map((spec) => computeOne(field, spec, parses));
+  return targeting.map((spec) => computeOne(field, spec, parses));
+}
+
+/**
+ * A Derived Field of a JSON array column: computed item by item, so it has one value per item as well. An item
+ * that fails is left empty; the cell is a Parse Error only when every non-empty item fails.
+ */
+function computeOverItems(field: Field, items: string[], spec: DerivedFieldSpec): Field {
+  const results = items.map((item) => computeOne({ key: field.key, value: item }, spec, {}));
+  const values = results.map((result) => (result.parseError ? "" : result.value));
+  const failed = items.some((item) => item !== "") && results.every((result, i) => items[i] === "" || result.parseError);
+  return {
+    key: derivedFieldKey(spec),
+    value: values.join("\n"),
+    items: values,
+    sourceFieldKey: field.key,
+    ...(failed ? { parseError: true } : {}),
+  };
 }

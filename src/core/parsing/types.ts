@@ -28,6 +28,11 @@ export interface DelimiterParsingConfig {
   expectedFieldCount: number;
   /** Field names in order, from a detected/confirmed header row, or user-assigned. */
   fieldNames?: string[];
+  /**
+   * Split columns that may contain JSON (by Field key). Their cells are searched for JSON when parsing, even in
+   * the middle of text, and it becomes columns of its own (see expandJsonFields). Omitted means none.
+   */
+  jsonFieldKeys?: string[];
 }
 
 export type ParsingConfig = DelimiterParsingConfig;

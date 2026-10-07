@@ -1,4 +1,5 @@
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
+import type { ArrayMode } from "@/core/json/types";
 import type { ParsingConfig } from "@/core/parsing/types";
 
 export type SearchMode = "highlight" | "filter";
@@ -14,11 +15,17 @@ export interface ColumnOptions {
   secondLine?: boolean;
   /** Each distinct value gets its own (deterministic) color, as a badge. */
   colorCode?: boolean;
+  /**
+   * Only on the entry of a root-level JSON array's key (e.g. "info.trace[]"), not on a column: how the array's
+   * items are shown. Missing means "table", the default.
+   */
+  arrayMode?: Exclude<ArrayMode, "table">;
 }
 
-export type ColumnOption = keyof ColumnOptions;
+/** The on/off options of a column. */
+export type ColumnOption = "secondLine" | "colorCode";
 
-/** Options by Field key. A column with no option on has no entry. */
+/** Options by Field key (and by array key for `arrayMode`). A column with no option on has no entry. */
 export type ColumnOptionsMap = Record<string, ColumnOptions>;
 
 export interface DisplayConfig {

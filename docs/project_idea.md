@@ -53,6 +53,8 @@ like in kibana, I should be able to filter in/out by the content of a cell to au
  
 
 ## improvement seen while working
+the bug that sometime the next button does not appear, and that when it is not there, the upload button does not work. why is it that. Is the app too long to load??
+if i select row 1, then select row 3, then "shift + click" row 5 row 3 to 5 are checked, but row 1 is de-selected. this is not what I would expect.
 default column name should not have space to easily rewrite them
 when seeing this type of parsing that needs to be done via regex `10001 [global] [42] [10000]` we should proposed some regex rule to parse the data. the user could still right the regex by hand, or modify our suggestion.
 parsing of user agent `Mozilla/5.0 (Macintosh; Intel Mac OS X 2.4; rv:42.0) Gecko/20100101 Firefox/90.0`

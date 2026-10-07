@@ -14,6 +14,8 @@ export interface DelimiterParsingChoices {
   quoteAware?: boolean;
   /** Names to keep from an existing Profile (ignored when hasHeaderRow, where the header supplies them). */
   fieldNames?: string[];
+  /** Split columns that may contain JSON. Omitted from the config when empty. */
+  jsonFieldKeys?: string[];
 }
 
 export interface ParsingPreview {
@@ -48,6 +50,7 @@ export function buildParsingPreview(sampleRows: RawRow[], choices: DelimiterPars
     ...untrimmedConfig,
     trimBoundaryPartials: choices.trimBoundaryPartials,
     expectedFieldCount,
+    ...(choices.jsonFieldKeys && choices.jsonFieldKeys.length > 0 ? { jsonFieldKeys: choices.jsonFieldKeys } : {}),
   };
 
   return { config, parsed: parseRawRows(sampleRows, config) };

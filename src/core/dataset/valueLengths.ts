@@ -12,7 +12,12 @@ export function maxValueLengths(records: ParsedRecord[]): Map<string, number> {
   const longest = new Map<string, number>();
   for (const record of records) {
     for (const field of record.fields) {
-      const length = field.parseError ? PARSE_ERROR_TEXT_LENGTH : field.value.length;
+      // A JSON array column shows one item per line: its width is that of the longest item.
+      const length = field.parseError
+        ? PARSE_ERROR_TEXT_LENGTH
+        : field.items
+          ? Math.max(0, ...field.items.map((item) => item.length))
+          : field.value.length;
       if (length > (longest.get(field.key) ?? 0)) longest.set(field.key, length);
     }
   }

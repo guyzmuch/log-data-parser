@@ -12,6 +12,13 @@ export interface ExportRows {
   rows: string[][];
 }
 
+/** The value of a cell in the CSV, as on screen: a Parse Error exports its "Invalid parse" text. */
+function cellText(record: ParsedRecord, key: string): string {
+  const field = record.fields.find((f) => f.key === key);
+  if (field?.parseError) return "Invalid parse";
+  return field?.value ?? "";
+}
+
 /**
  * Selects which Records to export per scope, and projects them onto the
  * current Visible Fields (in order) — same columns the table shows.
@@ -46,13 +53,9 @@ export function buildExportRows(
     }
   }
 
-  const rows = selected.map((record) =>
-    visibleFieldKeys.map((key) => {
-      const field = record.fields.find((f) => f.key === key);
-      if (field?.parseError) return "Invalid parse";
-      return field?.value ?? "";
-    }),
-  );
+  // One CSV line per record, whatever the table shows: a JSON array column is one cell holding its items, one per
+  // line (a Field's value is already its items joined with line breaks).
+  const rows = selected.map((record) => visibleFieldKeys.map((key) => cellText(record, key)));
 
   // The user's comments become one extra last column, only when an exported row has one.
   if (selected.some((record) => comments.get(record.index))) {

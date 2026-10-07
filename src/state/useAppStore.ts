@@ -13,7 +13,9 @@ import { createProfile } from "@/core/profile/createProfile";
 import { currentFieldOrder, moveBefore, naturalFieldOrder, visibleInOrder } from "@/core/profile/fieldOrder";
 import { reconcileDisplay } from "@/core/profile/reconcileDisplay";
 import { addFieldFilter, pruneFieldFilters, type FieldFilter } from "@/core/filters/fieldFilters";
-import { hasColumnOption, setColumnOption } from "@/core/profile/columnOptions";
+import { placeJsonColumnsInProfile } from "@/core/json/placeJsonColumns";
+import type { ArrayMode, JsonColumns } from "@/core/json/types";
+import { hasColumnOption, setArrayMode, setColumnOption } from "@/core/profile/columnOptions";
 import type { ColumnOption, DisplayConfig, Profile, SearchState } from "@/core/profile/types";
 import { addView, deleteView, reconcileViews, renameView, switchView, syncActiveView } from "@/core/profile/views";
 import { computeRangeSelection, type SelectionModifiers } from "@/core/selection/computeRangeSelection";
@@ -23,8 +25,12 @@ const JSON_KEY_SAMPLE_SIZE = 50;
 
 interface AppState {
   dataset: Dataset | null;
-  /** Field keys parsing produced directly, before any Derived Fields. */
+  /** Field keys parsing produced directly, before any Derived Fields (JSON columns of the parsing rule included). */
   baseFieldNames: string[];
+  /** The columns the parsing rule's JSON option produced, by Field key. */
+  jsonColumns: JsonColumns;
+  /** Nested array tables (array mode "table") that are open, as `${arrayKey}\n${recordIndex}`. Session-only. */
+  expandedArrayTables: Set<string>;
   records: ParsedRecord[];
   activeProfile: Profile | null;
   /** Session-only; never persisted to the Profile (see Hidden Record in CONTEXT.md). */
@@ -105,6 +111,17 @@ interface AppState {
   renameField: (key: string, label: string) => void;
   /** Turns one display option of a column on or off (second line, color-coding...). Part of the active view. */
   toggleColumnOption: (key: string, option: ColumnOption) => void;
+  /** How a root-level JSON array's items are shown (sub-rows, nested table, or joined in one cell). Part of the active view. */
+  setArrayMode: (arrayKey: string, mode: ArrayMode) => void;
+  /** Opens or closes a record's nested table of an array. */
+  toggleArrayTable: (arrayKey: string, recordIndex: number) => void;
+  /** Opens or closes the nested tables of an array for all these records at once. */
+  setArrayTablesOpen: (arrayKey: string, recordIndexes: number[], open: boolean) => void;
+  /**
+   * Turns the parsing rule's "may contain JSON" option on or off for a split column and re-parses. Not saved
+   * until "Save view", like the rest of the display.
+   */
+  setJsonParsing: (key: string, on: boolean) => void;
   /** Sets a column's width in px, or puts it back to automatic when null. */
   setColumnWidth: (key: string, width: number | null) => void;
   setSearchState: (search: SearchState) => void;
@@ -219,6 +236,8 @@ export const useAppStore = create<AppState>((set, get) => {
   return {
     dataset: null,
     baseFieldNames: [],
+    jsonColumns: {},
+    expandedArrayTables: new Set(),
     records: [],
     activeProfile: null,
     hiddenRecordIndexes: new Set(),
@@ -244,6 +263,8 @@ export const useAppStore = create<AppState>((set, get) => {
         dataset: { rawText, name },
         activeProfile: null,
         baseFieldNames: [],
+        jsonColumns: {},
+        expandedArrayTables: new Set(),
         records: [],
         hiddenRecordIndexes: new Set(),
         recordComments: new Map(),
@@ -259,17 +280,27 @@ export const useAppStore = create<AppState>((set, get) => {
     applyProfile: (profile) => {
       const dataset = get().dataset;
       if (!dataset) return;
-      const { fieldNames: baseFieldNames, records: baseRecords } = parseDataset(dataset.rawText, profile.parsing);
+      const {
+        fieldNames: baseFieldNames,
+        records: baseRecords,
+        jsonColumns = {},
+      } = parseDataset(dataset.rawText, profile.parsing);
+
+      // JSON columns the Profile has never seen go next to their source, shown (reconciling alone would
+      // add them at the end, hidden).
+      const placed = placeJsonColumnsInProfile(profile, baseFieldNames, jsonColumns);
 
       // A Profile may have been saved against other Fields (or carry stale Derived Field specs, or be a
       // built-in template with nothing visible yet), so its display is reconciled with what this
       // Dataset really parsed to before anything is derived or rendered.
-      const display = reconcileDisplay(profile.display, baseFieldNames);
+      const display = reconcileDisplay(placed.display, baseFieldNames);
       const parsedIndexes = new Set(baseRecords.map((record) => record.index));
 
       set({
-        activeProfile: reconcileViews({ ...profile, display }, baseFieldNames),
+        activeProfile: reconcileViews({ ...placed, display }, baseFieldNames),
         baseFieldNames,
+        jsonColumns,
+        expandedArrayTables: new Set(),
         records: applyDerivedFields(baseRecords, display.derivedFieldSelections),
         // Comments survive a profile switch (same Dataset); only those on Records the new parse lacks go.
         recordComments: new Map([...get().recordComments].filter(([index]) => parsedIndexes.has(index))),
@@ -404,6 +435,49 @@ export const useAppStore = create<AppState>((set, get) => {
         const on = !hasColumnOption(display.columnOptions, key, option);
         return { ...display, columnOptions: setColumnOption(display.columnOptions, key, option, on) };
       });
+    },
+
+    setArrayMode: (arrayKey, mode) => {
+      updateDisplay((display) => ({ ...display, columnOptions: setArrayMode(display.columnOptions, arrayKey, mode) }));
+    },
+
+    toggleArrayTable: (arrayKey, recordIndex) => {
+      const next = new Set(get().expandedArrayTables);
+      const id = `${arrayKey}\n${recordIndex}`;
+      if (!next.delete(id)) next.add(id);
+      set({ expandedArrayTables: next });
+    },
+
+    setArrayTablesOpen: (arrayKey, recordIndexes, open) => {
+      const next = new Set(get().expandedArrayTables);
+      for (const index of recordIndexes) {
+        if (open) next.add(`${arrayKey}\n${index}`);
+        else next.delete(`${arrayKey}\n${index}`);
+      }
+      set({ expandedArrayTables: next });
+    },
+
+    setJsonParsing: (key, on) => {
+      const profile = get().activeProfile;
+      if (!profile) return;
+      const current = profile.parsing.jsonFieldKeys ?? [];
+      if (current.includes(key) === on) return;
+
+      const jsonFieldKeys = on ? [...current, key] : current.filter((k) => k !== key);
+      const parsing = { ...profile.parsing };
+      delete parsing.jsonFieldKeys;
+      // Turning it off removes the JSON columns: the source column comes back into view in their place.
+      const display = on
+        ? profile.display
+        : { ...profile.display, visibleFieldKeys: [...new Set([...profile.display.visibleFieldKeys, key])] };
+
+      get().applyProfile(
+        syncActiveView({
+          ...profile,
+          parsing: jsonFieldKeys.length > 0 ? { ...parsing, jsonFieldKeys } : parsing,
+          display,
+        }),
+      );
     },
 
     setColumnWidth: (key, width) => {
