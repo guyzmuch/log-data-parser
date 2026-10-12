@@ -22,7 +22,7 @@ import { useWindowedRows } from "@/components/data-table/useWindowedRows";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { ParsedRecord } from "@/core/dataset/types";
+import type { Field, ParsedRecord } from "@/core/dataset/types";
 import { maxValueLengths } from "@/core/dataset/valueLengths";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { enabledFilters } from "@/core/filters/fieldFilters";
@@ -466,6 +466,32 @@ export function DataTable() {
     return hasColumnOption(columnOptions, key, "colorCode") && value !== "" ? <ValueBadge value={value}>{content}</ValueBadge> : content;
   }
 
+  /**
+   * A "(text)" cell whose JSON was taken out: its text with a `{…}` tag where the JSON was. The tag is drawn here
+   * only, so searching and filtering still see the plain text. Hovering it names the columns the JSON became.
+   */
+  function textContent(record: ParsedRecord, key: string, field: Field | undefined): ReactNode {
+    if (!field?.jsonSplit) return valueContent(key, field?.value ?? "");
+    const { before, after, marker } = field.jsonSplit;
+    const source = jsonColumns[key]?.sourceKey;
+    const parsed = record.fields
+      .filter((f) => jsonColumns[f.key]?.sourceKey === source && !jsonColumns[f.key].text)
+      .map((f) => labelOf(f.key));
+    return (
+      <>
+        {before !== "" && <>{valueContent(key, before)} </>}
+        <span
+          data-json-marker="true"
+          title={`JSON taken out of the text and parsed into ${parsed.length} ${parsed.length === 1 ? "column" : "columns"}: ${parsed.join(", ")}`}
+          className="border border-border bg-background px-1 text-[0.6875rem] text-muted-foreground"
+        >
+          {marker}
+        </span>
+        {after !== "" && <> {valueContent(key, after)}</>}
+      </>
+    );
+  }
+
   /** The cells of one record's main row. */
   function mainCells(record: ParsedRecord, layout: RecordLayout): ReactNode[] {
     const multiLine = layout.lines > 1;
@@ -503,9 +529,9 @@ export function DataTable() {
           value={value}
           className={cellClass}
           multiLine={multiLine}
-          title={value.length > COLUMN_MAX_CH || columnWidths?.[key] ? value : undefined}
+          title={!field?.jsonSplit && (value.length > COLUMN_MAX_CH || columnWidths?.[key]) ? value : undefined}
         >
-          {valueContent(key, value)}
+          {textContent(record, key, field)}
         </DataCell>
       );
     });
@@ -638,7 +664,7 @@ export function DataTable() {
                       >
                         <div className={cn("line-clamp-3 font-mono leading-5 break-words", field?.parseError && "text-destructive")}>
                           <span className="mr-2 font-sans text-xs text-muted-foreground select-none">{labelOf(key)}</span>
-                          {field?.parseError ? value : valueContent(key, value)}
+                          {field?.parseError ? value : textContent(record, key, field)}
                         </div>
                       </TableCell>
                     </BodyRow>

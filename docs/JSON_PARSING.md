@@ -67,6 +67,11 @@ Parsing rule:
 - JSON stored as a string (`"{\"a\":1}"`) or with escaped quotes (`{\"a\":1}`) is decoded too.
 - **The text outside the JSON gets its own column**, `info (text)`, on top of the JSON columns (text before and
   after the JSON, joined). A cell without JSON puts all its text there.
+- **A `{…}` (or `[…]`) tag marks where the JSON was** in that text: `10003 [warn] [api] [10001]: {…} (took 2.4s)`.
+  Rows without JSON have no tag; a cell that was only JSON shows the tag alone. Hovering it lists the columns the
+  JSON became. The tag is drawn on screen only (search and filters see the plain text, `Field.jsonSplit` keeps the
+  before/after parts) but it **is kept in the CSV export**. Alternatives considered: separate `(before)` / `(after)`
+  columns (one more, mostly empty column), or showing the original column with the JSON folded into a tag.
 - Only the **first** JSON of a cell is parsed; anything after it stays in `info (text)`.
 - The source column (`info`) is kept, **hidden by default** (shown again from the Columns popover).
 - Every key found becomes a column. Keys never seen before (new file, same Profile) are added **visible, after

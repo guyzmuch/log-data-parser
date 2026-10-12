@@ -14,6 +14,13 @@ export interface JsonExpansion {
   jsonColumns: JsonColumns;
 }
 
+/** A "(text)" Field's value with its JSON marker where the JSON was (`10003 [warn]: {…} (took 2.4s)`), as exported. */
+export function textWithJsonMarker(field: Field): string {
+  if (!field.jsonSplit) return field.value;
+  const { before, after, marker } = field.jsonSplit;
+  return [before, marker, after].filter((part) => part !== "").join(" ");
+}
+
 /** The text around the JSON, as one value. */
 function joinText(before: string, after: string): string {
   return [before.trim(), after.trim()].filter((part) => part !== "").join(" ");
@@ -22,6 +29,7 @@ function joinText(before: string, after: string): string {
 interface CellExpansion {
   text: string;
   flat?: FlatJson;
+  split?: Field["jsonSplit"];
 }
 
 /**
@@ -62,10 +70,15 @@ export function expandJsonFields(fieldNames: string[], records: ParsedRecord[], 
       if (!sources.has(field.key)) continue;
       const found = findEmbeddedJson(field.value);
       const cell: CellExpansion = found
-        ? { text: joinText(found.before, found.after), flat: flattenJson(found.json, field.key) }
+        ? {
+            text: joinText(found.before, found.after),
+            flat: flattenJson(found.json, field.key),
+            split: { before: found.before.trim(), after: found.after.trim(), marker: Array.isArray(found.json) ? "[…]" : "{…}" },
+          }
         : { text: field.value };
       cells.set(field.key, cell);
-      if (cell.text !== "") register(jsonTextKey(field.key), field.key, { text: true });
+      // A cell with JSON gets a "(text)" value even when nothing is around the JSON: it shows where the JSON was.
+      if (cell.text !== "" || cell.split) register(jsonTextKey(field.key), field.key, { text: true });
       if (!cell.flat) continue;
       for (const key of cell.flat.scalars.keys()) register(key, field.key);
       for (const [arrayKey, items] of cell.flat.arrays) {
@@ -89,7 +102,9 @@ export function expandJsonFields(fieldNames: string[], records: ParsedRecord[], 
       if (!cell) continue;
 
       const textKey = jsonTextKey(field.key);
-      if (cell.text !== "" && jsonColumns[textKey]?.text) fields.push({ key: textKey, value: cell.text });
+      if ((cell.text !== "" || cell.split) && jsonColumns[textKey]?.text) {
+        fields.push({ key: textKey, value: cell.text, ...(cell.split ? { jsonSplit: cell.split } : {}) });
+      }
       if (!cell.flat) continue;
 
       for (const [key, value] of cell.flat.scalars) {

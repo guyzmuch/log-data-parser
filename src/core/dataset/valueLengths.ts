@@ -17,7 +17,9 @@ export function maxValueLengths(records: ParsedRecord[]): Map<string, number> {
         ? PARSE_ERROR_TEXT_LENGTH
         : field.items
           ? Math.max(0, ...field.items.map((item) => item.length))
-          : field.value.length;
+          : field.jsonSplit
+            ? field.value.length + 4 // the JSON marker shown in the text, and a space
+            : field.value.length;
       if (length > (longest.get(field.key) ?? 0)) longest.set(field.key, length);
     }
   }

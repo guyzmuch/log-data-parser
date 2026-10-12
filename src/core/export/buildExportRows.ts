@@ -3,6 +3,7 @@ import type { DisplayConfig } from "@/core/profile/types";
 import { enabledFilters, matchesFieldFilters, type FieldFilter } from "@/core/filters/fieldFilters";
 import { matchesSearch } from "@/core/search/matchesSearch";
 import type { ExportScope } from "@/core/export/types";
+import { textWithJsonMarker } from "@/core/json/expandJsonFields";
 
 /** Header of the extra column holding the user's comments. */
 export const COMMENT_COLUMN_NAME = "comment";
@@ -16,7 +17,8 @@ export interface ExportRows {
 function cellText(record: ParsedRecord, key: string): string {
   const field = record.fields.find((f) => f.key === key);
   if (field?.parseError) return "Invalid parse";
-  return field?.value ?? "";
+  // A "(text)" column keeps a marker where the JSON was, as on screen.
+  return field ? textWithJsonMarker(field) : "";
 }
 
 /**
