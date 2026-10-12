@@ -22,7 +22,8 @@ function normalizeParsing(value: unknown): ParsingConfig | undefined {
     (v.quoteAware !== undefined && typeof v.quoteAware !== "boolean") ||
     typeof v.trimBoundaryPartials !== "boolean" ||
     typeof v.expectedFieldCount !== "number" ||
-    (v.fieldNames !== undefined && !isStringArray(v.fieldNames))
+    (v.fieldNames !== undefined && !isStringArray(v.fieldNames)) ||
+    (v.jsonFieldKeys !== undefined && !isStringArray(v.jsonFieldKeys))
   ) {
     return undefined;
   }

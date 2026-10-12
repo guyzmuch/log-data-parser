@@ -1,4 +1,6 @@
 import type { ParsedRecord } from "@/core/dataset/types";
+import { expandJsonFields } from "@/core/json/expandJsonFields";
+import type { JsonColumns } from "@/core/json/types";
 import { applyBoundaryTrim } from "@/core/parsing/applyBoundaryTrim";
 import { cleanValue, recordFromValues } from "@/core/parsing/parseRecord";
 import { toRawRows, type RawRow } from "@/core/parsing/parseRows";
@@ -7,6 +9,8 @@ import type { ParsingConfig } from "@/core/parsing/types";
 export interface ParsedDataset {
   fieldNames: string[];
   records: ParsedRecord[];
+  /** The columns the parsing rule's JSON option added, when it is on for a column. */
+  jsonColumns?: JsonColumns;
 }
 
 /** Turns already-split rows into Records per a Profile's parsing config: header names, cell cleanup, boundary trim. */
@@ -48,6 +52,9 @@ export function parseRawRows(rows: RawRow[], config: ParsingConfig): ParsedDatas
   );
   const resolvedFieldNames = widestRecord?.fields.map((field) => field.key) ?? fieldNames ?? [];
 
+  if (config.jsonFieldKeys && config.jsonFieldKeys.length > 0) {
+    return expandJsonFields(resolvedFieldNames, records, config.jsonFieldKeys);
+  }
   return { fieldNames: resolvedFieldNames, records };
 }
 

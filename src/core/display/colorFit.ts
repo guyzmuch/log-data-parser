@@ -37,10 +37,13 @@ export function colorFitByField(records: ParsedRecord[]): Map<string, ColorFit> 
         seen.set(field.key, column);
       }
       if (field.parseError || column.values.size > MAX_COLOR_VALUES) continue;
-      const value = normalizeColorKey(field.value);
-      if (value === "") continue;
-      column.values.add(value);
-      column.count++;
+      // A JSON array column is colored item by item.
+      for (const raw of field.items ?? [field.value]) {
+        const value = normalizeColorKey(raw);
+        if (value === "") continue;
+        column.values.add(value);
+        column.count++;
+      }
     }
   }
 

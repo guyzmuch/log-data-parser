@@ -8,6 +8,7 @@ import { useAppStore } from "@/state/useAppStore";
 export const PATTERN_LABELS: Record<ColumnPatternKind, string> = {
   date: "date",
   json: "JSON",
+  "json-in-text": "JSON in text",
   "stringified-escapes": "escaped chars",
 };
 
@@ -25,7 +26,8 @@ export function useDetectedPatterns(): Record<string, ColumnPatternKind[]> {
     const sample = records.slice(0, SAMPLE_SIZE);
     const detected: Record<string, ColumnPatternKind[]> = {};
     for (const key of baseFieldNames) {
-      const values = sample.flatMap((record) => record.fields.filter((f) => f.key === key).map((f) => f.value));
+      // A JSON array column is judged on its items.
+      const values = sample.flatMap((record) => record.fields.filter((f) => f.key === key).flatMap((f) => f.items ?? [f.value]));
       detected[key] = detectColumnPatterns(values);
     }
     return detected;

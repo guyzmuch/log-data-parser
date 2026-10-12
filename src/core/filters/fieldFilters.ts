@@ -30,7 +30,9 @@ export function matchesFieldFilters(record: ParsedRecord, filters: readonly Fiel
   for (const filter of filters) {
     if (filter.disabled) continue;
     const field = record.fields.find((f) => f.key === filter.key);
-    const equal = field !== undefined && !field.parseError && field.value === filter.value;
+    // A JSON array column matches when any of its items is the value (or the whole joined cell is).
+    const equal =
+      field !== undefined && !field.parseError && (field.value === filter.value || field.items?.includes(filter.value) === true);
     if (filter.negate ? equal : !equal) return false;
   }
   return true;

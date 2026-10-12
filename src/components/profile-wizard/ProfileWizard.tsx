@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import { CheckIcon } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
+import { CheckIcon, InfoIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,6 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { buildParsingPreview } from "@/core/parsing/buildParsingPreview";
 import { buildWizardSample, sampleWithFirst } from "@/core/parsing/buildWizardSample";
+import { findEmbeddedJson } from "@/core/json/findEmbeddedJson";
+import { placeJsonColumns } from "@/core/json/placeJsonColumns";
 import { detectDelimiter } from "@/core/parsing/detectDelimiter";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { trimsCells } from "@/core/parsing/parseRecord";
@@ -45,6 +47,8 @@ const DELIMITER_GLYPHS: Record<Delimiter, string> = {
 };
 
 const PREVIEW_SAMPLE_SIZE = 8;
+/** Widest a preview column gets, in characters; longer values are cut with "…" (the full value shows on mouse over). */
+const PREVIEW_MAX_CHARS = 50;
 
 interface ProfileWizardProps {
   open: boolean;
@@ -74,7 +78,8 @@ export function ProfileWizard({
 }: ProfileWizardProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl">
+      {/* Header, body, footer: the body takes what's left of the height and scrolls, so the footer stays in view. */}
+      <DialogContent className="max-h-[calc(100%-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-6xl">
         <WizardForm
           onOpenChange={onOpenChange}
           datasetRawText={datasetRawText}
@@ -93,22 +98,20 @@ interface ToggleRowProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   title: string;
-  children: ReactNode;
+  /** The explanation, shown on mouse over. */
+  children: string;
 }
 
-/** A checkbox with a title and a one-line explanation, as a single label. */
+/** A checkbox with a title, as a single label. The explanation shows on mouse over, so the list stays short. */
 function ToggleRow({ checked, onCheckedChange, title, children }: ToggleRowProps) {
   return (
-    <label className="flex cursor-pointer items-start gap-2.5 border-t border-border py-3 first:border-t-0 first:pt-0">
-      <Checkbox
-        className="mt-0.5"
-        checked={checked}
-        onCheckedChange={(value) => onCheckedChange(value === true)}
-      />
-      <span className="grid gap-0.5">
-        <span className="font-medium">{title}</span>
-        <span className="text-xs/relaxed text-muted-foreground">{children}</span>
-      </span>
+    <label
+      title={children}
+      className="flex cursor-pointer items-center gap-2.5 border-t border-border py-2 first:border-t-0 first:pt-0"
+    >
+      <Checkbox checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
+      <span className="font-medium">{title}</span>
+      <InfoIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
     </label>
   );
 }
@@ -158,6 +161,7 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
     [quotedRows, sampleRawText, delimiter],
   );
 
+  // The split alone (no JSON parsing): what the preview shows, and the columns that can be marked "may contain JSON".
   const preview = useMemo(
     () =>
       buildParsingPreview(sampleRows, {
@@ -173,22 +177,51 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
     [sampleRows, delimiter, hasHeaderRow, stripQuotes, trimCells, trimBoundaryPartials, quoteAware, initialProfile],
   );
 
+  // Columns where some sampled cell holds JSON (whole, or inside text): tagged "detected" in the list.
+  const jsonDetected = useMemo(() => {
+    const detected = new Set<string>();
+    for (const key of preview.parsed.fieldNames) {
+      const values = preview.parsed.records.flatMap((record) => record.fields.filter((f) => f.key === key).map((f) => f.value));
+      if (values.some((value) => findEmbeddedJson(value) !== undefined)) detected.add(key);
+    }
+    return detected;
+  }, [preview]);
+
+  // What the user ticked or unticked; any other column is as the edited Profile had it, or unticked. Detection
+  // only tags a column ("detected"), it never ticks it.
+  const [jsonChoices, setJsonChoices] = useState<Record<string, boolean>>({});
+  const jsonFieldKeys = useMemo(
+    () =>
+      preview.parsed.fieldNames.filter(
+        (key) => jsonChoices[key] ?? initialProfile?.parsing.jsonFieldKeys?.includes(key) === true,
+      ),
+    [preview, jsonChoices, initialProfile],
+  );
+
+  // The JSON columns themselves aren't previewed (there can be many): the preview shows the split, and the
+  // JSON is parsed when the profile is applied to the table.
+  const config = jsonFieldKeys.length > 0 ? { ...preview.config, jsonFieldKeys } : preview.config;
+
   function handleSave() {
     // Field names for the saved display config come from parsing the real,
     // full Dataset with the chosen config — not from preview.parsed, which
     // is only a small sample and must never leak into what gets saved.
-    const { fieldNames: realFieldNames } = parseDataset(datasetRawText, preview.config);
+    const { fieldNames: realFieldNames, jsonColumns = {} } = parseDataset(datasetRawText, config);
 
-    // A new Profile starts with everything visible. When editing an existing one, keep what the user
-    // set up (labels, Derived Fields, visible columns, search) and only drop what no longer matches
-    // the Fields the new parsing config produces.
+    // A new Profile starts with everything visible (a column parsed as JSON is hidden behind its JSON columns).
+    // When editing an existing one, keep what the user set up (labels, Derived Fields, visible columns,
+    // search) and only drop what no longer matches the Fields the new parsing config produces.
     const display = initialProfile
-      ? reconcileDisplay(initialProfile.display, realFieldNames)
-      : createDefaultDisplayConfig(realFieldNames);
+      ? reconcileDisplay(placeJsonColumns(initialProfile.display, realFieldNames, jsonColumns), realFieldNames)
+      : placeJsonColumns(
+          createDefaultDisplayConfig(realFieldNames.filter((key) => !jsonColumns[key])),
+          realFieldNames,
+          jsonColumns,
+        );
     const profile: Profile =
       initialProfile && !editingBuiltIn
-        ? { ...initialProfile, name, parsing: preview.config, display, updatedAt: new Date().toISOString() }
-        : createProfile({ name, parsing: preview.config, display });
+        ? { ...initialProfile, name, parsing: config, display, updatedAt: new Date().toISOString() }
+        : createProfile({ name, parsing: config, display });
 
     onSave(profile);
     onOpenChange(false);
@@ -264,6 +297,35 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
               For pasted logs that were cut off mid-line.
             </ToggleRow>
           </div>
+
+          {preview.parsed.fieldNames.length > 0 && (
+            <div className="grid gap-1.5">
+              <span
+                title="The JSON in these columns becomes columns of its own, even in the middle of text. Nested objects too (5 levels), and the items of a top-level array."
+                className="flex w-fit cursor-help items-center gap-1.5 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+              >
+                May contain JSON
+                <InfoIcon aria-hidden className="size-3.5" />
+              </span>
+              <div className="grid max-h-48 gap-1 overflow-y-auto">
+                {preview.parsed.fieldNames.map((key) => (
+                  <label key={key} className="flex cursor-pointer items-center gap-2 py-0.5">
+                    <Checkbox
+                      checked={jsonFieldKeys.includes(key)}
+                      onCheckedChange={(value) => setJsonChoices((choices) => ({ ...choices, [key]: value === true }))}
+                      aria-label={`${key} may contain JSON`}
+                    />
+                    <span className="min-w-0 truncate font-mono text-[0.8125rem]">{key}</span>
+                    {jsonDetected.has(key) && (
+                      <span className="ml-auto border border-border bg-background px-1 text-[0.6875rem] font-medium text-muted-foreground">
+                        detected
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid min-w-0 content-start gap-2 p-6">
@@ -284,8 +346,18 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="sticky top-0 w-10 bg-muted text-right text-xs text-muted-foreground">#</TableHead>
                   {preview.parsed.fieldNames.map((key) => (
-                    <TableHead key={key} className="sticky top-0 bg-muted px-3 font-mono font-semibold">
+                    <TableHead
+                      key={key}
+                      title={key}
+                      style={{ maxWidth: `${PREVIEW_MAX_CHARS}ch` }}
+                      className="sticky top-0 truncate bg-muted px-3 font-mono font-semibold"
+                    >
                       {key}
+                      {jsonFieldKeys.includes(key) && (
+                        <span className="ml-1.5 border border-border bg-background px-1 font-sans text-[0.625rem] font-medium tracking-wide text-muted-foreground uppercase">
+                          JSON
+                        </span>
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -295,10 +367,15 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
                   <TableRow key={record.index}>
                     <TableCell className="text-right text-xs text-muted-foreground tabular-nums">{i + 1}</TableCell>
                     {preview.parsed.fieldNames.map((key) => {
-                      const field = record.fields.find((f) => f.key === key);
+                      const value = record.fields.find((f) => f.key === key)?.value ?? "";
                       return (
-                        <TableCell key={key} className="px-3 font-mono">
-                          {field?.value ?? ""}
+                        <TableCell
+                          key={key}
+                          title={value.length > PREVIEW_MAX_CHARS ? value : undefined}
+                          style={{ maxWidth: `${PREVIEW_MAX_CHARS}ch` }}
+                          className="truncate px-3 font-mono"
+                        >
+                          {value}
                         </TableCell>
                       );
                     })}

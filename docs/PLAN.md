@@ -224,6 +224,11 @@ Mostly covered by the specs written along the way: Phase F2's (upload/paste → 
 - **Verify:** these specs run against the static-exported `out/` served locally — matching actual Apache deployment, not `next dev`.
 - Deliberately sequenced after K/L/M: writing this against UI that's about to be reworked (drag-and-drop reordering, column search/filter, tabbed input area, etc.) would mean re-doing most of its selectors and flows once that rework lands — better to encode the golden path once the interface shape is actually settled.
 
+### Phase O — JSON parsing in the parsing rule — in progress
+Columns marked "may contain JSON" in the parsing rule: JSON inside text, nested objects (5 levels), root-level arrays
+shown as sub-rows / nested table / joined, CSV export of each. Design, decisions and implementation notes in
+[JSON_PARSING.md](./JSON_PARSING.md). Implemented, to be validated by hand before writing tests.
+
 ## 2. Sequencing notes
 
 - Phases A–C have no UI and should be fully unit-tested before component work starts — this is where domain-model correctness (Field-vs-Visible-Field separation, Expected Field Count semantics, boundary trim) gets locked in cheaply.

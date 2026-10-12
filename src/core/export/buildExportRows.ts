@@ -3,6 +3,7 @@ import type { DisplayConfig } from "@/core/profile/types";
 import { enabledFilters, matchesFieldFilters, type FieldFilter } from "@/core/filters/fieldFilters";
 import { matchesSearch } from "@/core/search/matchesSearch";
 import type { ExportScope } from "@/core/export/types";
+import { textWithJsonMarker } from "@/core/json/expandJsonFields";
 
 /** Header of the extra column holding the user's comments. */
 export const COMMENT_COLUMN_NAME = "comment";
@@ -10,6 +11,14 @@ export const COMMENT_COLUMN_NAME = "comment";
 export interface ExportRows {
   header: string[];
   rows: string[][];
+}
+
+/** The value of a cell in the CSV, as on screen: a Parse Error exports its "Invalid parse" text. */
+function cellText(record: ParsedRecord, key: string): string {
+  const field = record.fields.find((f) => f.key === key);
+  if (field?.parseError) return "Invalid parse";
+  // A "(text)" column keeps a marker where the JSON was, as on screen.
+  return field ? textWithJsonMarker(field) : "";
 }
 
 /**
@@ -46,13 +55,9 @@ export function buildExportRows(
     }
   }
 
-  const rows = selected.map((record) =>
-    visibleFieldKeys.map((key) => {
-      const field = record.fields.find((f) => f.key === key);
-      if (field?.parseError) return "Invalid parse";
-      return field?.value ?? "";
-    }),
-  );
+  // One CSV line per record, whatever the table shows: a JSON array column is one cell holding its items, one per
+  // line (a Field's value is already its items joined with line breaks).
+  const rows = selected.map((record) => visibleFieldKeys.map((key) => cellText(record, key)));
 
   // The user's comments become one extra last column, only when an exported row has one.
   if (selected.some((record) => comments.get(record.index))) {

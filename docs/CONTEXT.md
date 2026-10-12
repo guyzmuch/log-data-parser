@@ -20,6 +20,8 @@ A Field computed from another Field rather than produced directly by splitting a
 - **unescape** — common backslash escape sequences resolved (`\"`, `\\`, `\n`, `\t`, `\r`) — for a value copy-pasted out of a stringified/escaped source.
 - **json-key** — one top-level key extracted from a source Field parsed as a JSON object; one Derived Field per discovered key (nested objects/arrays are stringified back, not recursively exploded further).
 
+Separately from Derived Fields, the parsing rule can mark a column as **"may contain JSON"**: its JSON (nested, inside text, with root-level arrays shown as sub-rows) is parsed into ordinary columns when the Profile is applied — see [JSON_PARSING.md](./JSON_PARSING.md).
+
 All of these are opt-in per Field via a "force as X" action — none apply automatically. A **column-pattern detector** (`detectColumnPatterns`) samples a Field's actual values and surfaces which of these look applicable (majority-vote over the sample, same technique as Expected Field Count) as an informational hint next to the Field in the Columns panel — it only ever *suggests*, never auto-applies; the user still clicks the relevant "force as" action. Known false positive: a column of small integers (e.g. a short numeric id) can look like a valid Unix-epoch-seconds date to the detector, since it genuinely does parse as one.
 
 All *proposed* Derived Fields exist as parsed data regardless of whether they're shown; the user decides per Profile which ones become Visible Fields (see Field vs. Visible Field, below). Derived Fields are always computed from a base Field, not chained from another Derived Field (v1 doesn't support that).

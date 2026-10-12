@@ -1,3 +1,5 @@
+import { arrayKeyFromName } from "@/core/json/arrayColumns";
+import type { ArrayMode } from "@/core/json/types";
 import type { ColumnOption, ColumnOptionsMap } from "@/core/profile/types";
 
 const OPTIONS: ColumnOption[] = ["secondLine", "colorCode"];
@@ -29,12 +31,30 @@ export function setColumnOption(
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-/** Keeps only the entries of keys in `knownKeys`. Undefined when nothing is left. */
+/** How a root-level JSON array's items are shown ("table" unless set otherwise). */
+export function arrayModeOf(map: ColumnOptionsMap | undefined, arrayKey: string): ArrayMode {
+  return map?.[arrayKey]?.arrayMode ?? "table";
+}
+
+/** The map with an array's display mode set. "table" is the default, so it removes the entry's setting. */
+export function setArrayMode(map: ColumnOptionsMap | undefined, arrayKey: string, mode: ArrayMode): ColumnOptionsMap | undefined {
+  const next: ColumnOptionsMap = { ...map };
+  const entry = { ...next[arrayKey] };
+  if (mode === "table") delete entry.arrayMode;
+  else entry.arrayMode = mode;
+
+  if (Object.keys(entry).length > 0) next[arrayKey] = entry;
+  else delete next[arrayKey];
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+/** Keeps only the entries of keys in `knownKeys`, or of an array whose columns are known. Undefined when nothing is left. */
 export function pruneColumnOptions(map: ColumnOptionsMap | undefined, knownKeys: ReadonlySet<string>): ColumnOptionsMap | undefined {
   if (!map) return undefined;
+  const arrayKeys = new Set([...knownKeys].map(arrayKeyFromName).filter((key) => key !== undefined));
   const next: ColumnOptionsMap = {};
   for (const [key, entry] of Object.entries(map)) {
-    if (knownKeys.has(key)) next[key] = entry;
+    if (knownKeys.has(key) || arrayKeys.has(key)) next[key] = entry;
   }
   return Object.keys(next).length > 0 ? next : undefined;
 }
@@ -52,6 +72,9 @@ export function normalizeColumnOptions(value: unknown, legacySecondLineKeys?: un
       for (const option of OPTIONS) {
         if ((entry as Record<string, unknown>)[option] === true) map = setColumnOption(map, key, option, true);
       }
+      const arrayMode = (entry as Record<string, unknown>).arrayMode;
+      // Only "rows" is stored: "table" is the default, and the former "joined" mode no longer exists (shown as a table).
+      if (arrayMode === "rows") map = setArrayMode(map, key, arrayMode);
     }
   }
 

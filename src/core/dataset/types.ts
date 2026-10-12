@@ -22,6 +22,16 @@ export interface Field {
   sourceFieldKey?: string;
   /** Set when a Derived Field's computation failed (e.g. invalid date parse). `value` is meaningless when true. */
   parseError?: boolean;
+  /**
+   * Set on a column of a root-level JSON array: one value per item (every column of that array has the same
+   * number of items in a Record). `value` is then the items joined with line breaks.
+   */
+  items?: string[];
+  /**
+   * Set on a "(text)" column's Field when its cell had JSON: the text before and after it. `value` is that text
+   * joined, without the JSON; the table (and the CSV export) show `marker` where the JSON was.
+   */
+  jsonSplit?: { before: string; after: string; marker: "{…}" | "[…]" };
 }
 
 /** One parsed line: the full set of Fields, independent of what a Profile currently displays. */

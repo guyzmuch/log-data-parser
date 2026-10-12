@@ -14,7 +14,10 @@ import {
   GlobeIcon,
   PaletteIcon,
   PencilSimpleIcon,
+  TreeStructureIcon,
 } from "@phosphor-icons/react";
+import { ARRAY_MODE_LABELS } from "@/components/data-table/ShowAsSubRowsButton";
+import { useArrayKeyByField } from "@/components/data-table/useArrayKeyByField";
 import { PATTERN_LABELS } from "@/components/data-table/useDetectedPatterns";
 import { TimezoneDialog } from "@/components/data-table/TimezoneDialog";
 import { Input } from "@/components/ui/input";
@@ -23,14 +26,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { ArrayMode } from "@/core/json/types";
 import type { ColumnPatternKind } from "@/core/derived-fields/detectColumnPatterns";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { MAX_COLOR_VALUES, type ColorFit } from "@/core/display/colorFit";
-import { hasColumnOption } from "@/core/profile/columnOptions";
+import { arrayModeOf, hasColumnOption } from "@/core/profile/columnOptions";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
 
@@ -98,6 +104,10 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
   const addDateTimeSplitDerivedFields = useAppStore((s) => s.addDateTimeSplitDerivedFields);
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
   const addUnescapeDerivedField = useAppStore((s) => s.addUnescapeDerivedField);
+  const setJsonParsing = useAppStore((s) => s.setJsonParsing);
+  const setArrayMode = useAppStore((s) => s.setArrayMode);
+  const jsonInfo = useAppStore((s) => s.jsonColumns[fieldKey]);
+  const arrayKeyByField = useArrayKeyByField();
 
   const [renaming, setRenaming] = useState(false);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
@@ -125,6 +135,11 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
     : false;
   const hasJson = fromThisField.some((spec) => spec.kind === "json-key");
   const hasUnescape = fromThisField.some((spec) => spec.kind === "unescape");
+  // The parsing rule's JSON option: offered on the columns parsing split, not on columns it produced.
+  const parsesJson = activeProfile.parsing.jsonFieldKeys?.includes(fieldKey) === true;
+  const jsonDetected = detected.includes("json") || detected.includes("json-in-text");
+  const arrayKey = arrayKeyByField.get(fieldKey);
+  const arrayMode = arrayKey ? arrayModeOf(activeProfile.display.columnOptions, arrayKey) : undefined;
 
   // Color-coding suits a column with a handful of different values; with more than there are colors it is switched off
   // (but a column that already has it on can always be turned back off).
@@ -263,6 +278,35 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
               </>
             )}
 
+            {arrayKey && arrayMode && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Show the {arrayKey} items as</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={arrayMode} onValueChange={(value) => setArrayMode(arrayKey, value as ArrayMode)}>
+                  {(Object.keys(ARRAY_MODE_LABELS) as ArrayMode[]).map((mode) => (
+                    <DropdownMenuRadioItem key={mode} value={mode}>
+                      {ARRAY_MODE_LABELS[mode]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <p className="px-2 py-1 text-xs text-muted-foreground">Sorting is not available on array columns.</p>
+              </>
+            )}
+
+            {!derivedSpec && !jsonInfo && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className={cn(jsonDetected && !parsesJson && suggest)}
+                  onSelect={() => setJsonParsing(fieldKey, !parsesJson)}
+                >
+                  <TreeStructureIcon />
+                  {parsesJson ? "Stop parsing JSON" : "Parse JSON (all levels)"}
+                  {jsonDetected && !parsesJson && detectedTag}
+                </DropdownMenuItem>
+              </>
+            )}
+
             {!derivedSpec && (
               <>
                 <DropdownMenuSeparator />
@@ -289,7 +333,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
                     <span className="ml-auto text-xs text-muted-foreground">UTC</span>
                   </DropdownMenuItem>
                 )}
-                {!hasJson && (
+                {!hasJson && !parsesJson && !jsonInfo && (
                   <DropdownMenuItem
                     className={cn(detected.includes("json") && suggest)}
                     onSelect={() => addJsonKeyDerivedFields(fieldKey)}
@@ -318,6 +362,11 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
       {derivedSpec && (
         <span className="truncate text-[0.6875rem] font-normal text-muted-foreground">
           from {labelOf(derivedSpec.sourceFieldKey)} · {DERIVED_KIND_LABELS[derivedSpec.kind]}
+        </span>
+      )}
+      {jsonInfo && (
+        <span className="truncate text-[0.6875rem] font-normal text-muted-foreground">
+          from {labelOf(jsonInfo.sourceKey)} · {jsonInfo.text ? "text around the JSON" : jsonInfo.arrayKey ? "JSON array" : "JSON"}
         </span>
       )}
 
