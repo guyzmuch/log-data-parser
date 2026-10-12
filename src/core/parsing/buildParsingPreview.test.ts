@@ -21,7 +21,7 @@ describe("buildParsingPreview", () => {
 
     expect(config.delimiter).toBe(",");
     expect(config.expectedFieldCount).toBe(3);
-    expect(parsed.fieldNames).toEqual(["Field 1", "Field 2", "Field 3"]);
+    expect(parsed.fieldNames).toEqual(["field1", "field2", "field3"]);
     expect(parsed.records).toHaveLength(2);
   });
 
@@ -83,7 +83,7 @@ describe("buildParsingPreview", () => {
     });
 
     expect(config.fieldNames).toEqual(["client_ip", "method"]);
-    expect(parsed.fieldNames).toEqual(["client_ip", "method", "Field 3"]);
+    expect(parsed.fieldNames).toEqual(["client_ip", "method", "field3"]);
   });
 
   it("lets a header row override the handed-in field names", () => {

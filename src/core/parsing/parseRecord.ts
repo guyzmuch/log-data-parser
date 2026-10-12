@@ -22,10 +22,18 @@ export function cleanValue(value: string, config: ParsingConfig): string {
   return trim ? value.trim() : value;
 }
 
+/**
+ * Name of a Field the config doesn't name (1-based position). No spaces, so a double-click selects
+ * the whole name when renaming it.
+ */
+export function genericFieldName(position: number): string {
+  return `field${position}`;
+}
+
 /** Builds a Record from already-split cell values, naming the Fields per the Profile's config. */
 export function recordFromValues(index: number, raw: string, values: string[], config: ParsingConfig): ParsedRecord {
   const fields: Field[] = values.map((value, i) => ({
-    key: config.fieldNames?.[i] ?? `Field ${i + 1}`,
+    key: config.fieldNames?.[i] ?? genericFieldName(i + 1),
     value: cleanValue(value, config),
   }));
 

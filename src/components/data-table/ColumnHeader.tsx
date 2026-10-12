@@ -19,6 +19,7 @@ import {
 import { ARRAY_MODE_LABELS } from "@/components/data-table/ShowAsSubRowsButton";
 import { useArrayKeyByField } from "@/components/data-table/useArrayKeyByField";
 import { PATTERN_LABELS } from "@/components/data-table/useDetectedPatterns";
+import { UNIFORM_LABELS, uniformTitle } from "@/components/data-table/useUniformColumns";
 import { TimezoneDialog } from "@/components/data-table/TimezoneDialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { UniformColumn } from "@/core/dataset/uniformFields";
 import type { ArrayMode } from "@/core/json/types";
 import type { ColumnPatternKind } from "@/core/derived-fields/detectColumnPatterns";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
@@ -88,12 +90,14 @@ interface ColumnHeaderProps {
   detected: ColumnPatternKind[];
   /** How well the column's values suit color-coding. */
   colorFit?: ColorFit;
+  /** Set when every value of the column is blank, or the same. */
+  uniform?: UniformColumn;
   isFirst: boolean;
   isLast: boolean;
 }
 
 /** A column's title cell: its name, what was detected in it, and a menu with everything you can do to the column. */
-export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: ColumnHeaderProps) {
+export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, isLast }: ColumnHeaderProps) {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const toggleFieldVisibility = useAppStore((s) => s.toggleFieldVisibility);
   const toggleColumnOption = useAppStore((s) => s.toggleColumnOption);
@@ -167,6 +171,15 @@ export function ColumnHeader({ fieldKey, detected, colorFit, isFirst, isLast }: 
         ) : (
           <span data-testid="column-label" data-label={label} title={label} className="min-w-0 truncate font-mono text-[0.8125rem] font-semibold">
             {label}
+          </span>
+        )}
+        {!renaming && uniform && (
+          <span
+            data-testid="uniform-column-hint"
+            title={uniformTitle(uniform)}
+            className="border border-border bg-background px-1 text-[0.625rem] font-medium tracking-wide whitespace-nowrap text-muted-foreground uppercase"
+          >
+            {UNIFORM_LABELS[uniform.kind]}
           </span>
         )}
         {!renaming && colorSuggested && (

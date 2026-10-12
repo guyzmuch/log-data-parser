@@ -30,8 +30,8 @@ function emptyDisplay(): Profile["display"] {
  *
  * Their `fieldNames` only cover the PREFIX of fields that reliably stays
  * aligned — up to (not including) the first field that fragments. Everything
- * from there on falls back to generic "Field N" naming, which parseRecord
- * already does for free (`config.fieldNames?.[i] ?? "Field ${i+1}"` — a
+ * from there on falls back to generic "fieldN" naming, which parseRecord
+ * already does for free (`config.fieldNames?.[i] ?? genericFieldName(i + 1)` — a
  * shorter fieldNames array than the actual split simply runs out and falls
  * through). This gives real names where they're trustworthy without
  * pretending to know what a shifted, post-fragmentation column actually

@@ -48,35 +48,39 @@ You could also display entry in 2 lines
 Posibility to add comment on each data line
 user can specify a column that would be color coded based on the data inside. example, the request method if selected, will have the GET highlighted in a color, the POST in another. the color should be deterministic (maybe base on a sha), so that same text will always get the same color (this might be a bit difficult to have enough nice different color).
 like in kibana, I should be able to filter in/out by the content of a cell to auto filter by this entry
-
+celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
+for the autodetected parsing of data, add some specific styling to the button that will do this (like a star or something) so it stand out
+we should have an "hide all" column and "show all" columns button
+we should be able to parse easily a list of JSON, or an array of JSON. like in the profile it should be a simple option, a bit like the current "this is a CSV" file. but this only work if lines of JSON, or array of JSON. and so the logs "lines" could be separated by comma, even if an ently in multiline (if we have an prettyfied array of JSON, the rows should be each JSON, not the line), this 2 types of logs should be auto detected and proposed in the parsing option) and this should be able to deal with JSON with double quote, are escaped quote
+parse stack trace to multiline info (example error log in kibana)
+default column name should not have space to easily rewrite them
+since we detect cell, maybe notify column that only have empty data
 
  
 
 ## improvement seen while working
+
 update the type of method that shadcn is using. apparently I use radix, but it is depracated
-the bug that sometime the next button does not appear, and that when it is not there, the upload button does not work. why is it that. Is the app too long to load??
-if i select row 1, then select row 3, then "shift + click" row 5 row 3 to 5 are checked, but row 1 is de-selected. this is not what I would expect.
-default column name should not have space to easily rewrite them
+
+like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
+
 when seeing this type of parsing that needs to be done via regex `10001 [global] [42] [10000]` we should proposed some regex rule to parse the data. the user could still right the regex by hand, or modify our suggestion.
+maybe make the parsing of field via regex
 parsing of user agent `Mozilla/5.0 (Macintosh; Intel Mac OS X 2.4; rv:42.0) Gecko/20100101 Firefox/90.0`
-we should be able to parse easily a list of JSON, or an array of JSON. like in the profile it should be a simple option, a bit like the current "this is a CSV" file. but this only work if lines of JSON, or array of JSON. and so the logs "lines" could be separated by comma, even if an ently in multiline (if we have an prettyfied array of JSON, the rows should be each JSON, not the line), this 2 types of logs should be auto detected and proposed in the parsing option) and this should be able to deal with JSON with double quote, are escaped quote
+You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a 
+we can sort the table by column (asc/desc)
+
+
+if i select row 1, then select row 3, then "shift + click" row 5 row 3 to 5 are checked, but row 1 is de-selected. this is not what I would expect.
 columns selection should make the "shift" button work to unselect multiple column
-we should have an "hide all" column and "show all" columns button
 we should be able to search/filter column by name to active them or not (like in kibana)
 once the data is parsed, we should remove the insertion fields (or maybe hide it in a tab or something)
 be able to duplicate a profile (so we start from a base)
 be able to sort the profile
-since we detect cell, maybe notify column that only have empty data
 be able to sort data by column (asc, desc)
-maybe make the parsing of field via regex
-parse stack trace to multiline info (example error log in kibana)
-like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
-for the autodetected parsing of data, add some specific styling to the button that will do this (like a star or something) so it stand out
+
 Can change the font on some of the column (to have some info bigger)
-You could tonsome processing on some cell like: remove any stingified characters (like \" or stuffs), base 64 decode, parse a celle that is json (even if stringified) into sub column. Maybe, a bit like for the date, try to auto detect json, and propose a parsing
-we can sort the table by column (asc/desc)
 Could we have something simple that learn from previous file name, and if the name of 3 different file are similare, the we proposed the parsing profile that was used most for this type of file name (like format, extension, first line, etc) when i say proposed, I just mean a suggestion of the parsing profile
 can choose a different font for a cell to make it bigger, or bolt or italic
+the bug that sometime the next button does not appear, and that when it is not there, the upload button does not work. why is it that. Is the app too long to load??
 
-## to think over
-i want "children" column to be nested under the parent but still have a simple way to re-order the column

@@ -11,6 +11,7 @@ import {
   PaletteIcon,
 } from "@phosphor-icons/react";
 import { useColorFit } from "@/components/data-table/useColorFit";
+import { UNIFORM_LABELS, uniformTitle, useUniformColumns } from "@/components/data-table/useUniformColumns";
 import { MAX_COLOR_VALUES } from "@/core/display/colorFit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ export function ColumnsPopover() {
   const resetFieldOrder = useAppStore((s) => s.resetFieldOrder);
   const toggleColumnOption = useAppStore((s) => s.toggleColumnOption);
   const colorFits = useColorFit();
+  const uniformColumns = useUniformColumns();
 
   const [query, setQuery] = useState("");
   const [dragKey, setDragKey] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export function ColumnsPopover() {
             const colorSuggested = fit?.status === "good" && !colorOn;
             const colorBlocked = fit?.status === "too-many" && !colorOn;
             const source = sourceByDerivedKey.get(key);
+            const uniform = uniformColumns.get(key);
             return (
               <li
                 key={key}
@@ -150,6 +153,15 @@ export function ColumnsPopover() {
                 <span className="min-w-0 flex-1 truncate font-mono text-[0.8125rem]" title={labelOf(key)}>
                   {labelOf(key)}
                 </span>
+                {uniform && (
+                  <span
+                    data-testid="uniform-column-badge"
+                    title={uniformTitle(uniform)}
+                    className="shrink-0 border border-border bg-background px-1 text-[0.625rem] font-medium tracking-wide whitespace-nowrap text-muted-foreground uppercase"
+                  >
+                    {UNIFORM_LABELS[uniform.kind]}
+                  </span>
+                )}
                 <button
                   type="button"
                   aria-label={`${onSecondLine ? "Show in the row" : "Show on a second line"}: ${labelOf(key)}`}

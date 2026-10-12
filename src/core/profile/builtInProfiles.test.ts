@@ -98,7 +98,7 @@ describe("BUILT_IN_PROFILES", () => {
         "received_bytes",
         "sent_bytes",
       ]);
-      expect(keys[12]).toBe("Field 13"); // the fragmenting "request" field, left generic
+      expect(keys[12]).toBe("field13"); // the fragmenting "request" field, left generic
     });
   });
 
@@ -122,7 +122,7 @@ describe("BUILT_IN_PROFILES", () => {
       const { records } = parseDataset(readSample("linux-syslog.log"), profile.parsing);
       const keys = records[0].fields.map((f) => f.key);
       expect(keys.slice(0, 5)).toEqual(["month", "day", "time", "host", "process"]);
-      expect(keys[5]).toBe("Field 6"); // the fragmenting free-text message, left generic
+      expect(keys[5]).toBe("field6"); // the fragmenting free-text message, left generic
     });
   });
 
@@ -145,7 +145,7 @@ describe("BUILT_IN_PROFILES", () => {
       const { records } = parseDataset(readSample("apache-combined-logstash.log"), profile.parsing);
       const keys = records[0].fields.map((f) => f.key);
       expect(keys.slice(0, 5)).toEqual(["client_ip", "ident", "authuser", "timestamp_date", "timestamp_offset"]);
-      expect(keys[5]).toBe("Field 6"); // the fragmenting quoted "request" field, left generic
+      expect(keys[5]).toBe("field6"); // the fragmenting quoted "request" field, left generic
     });
   });
 

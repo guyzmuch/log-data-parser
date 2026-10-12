@@ -1,7 +1,8 @@
 "use client";
 
-import { ChatTextIcon } from "@phosphor-icons/react";
+import { ChatTextIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { ColumnsPopover } from "@/components/data-table/ColumnsPopover";
+import { useUniformColumns } from "@/components/data-table/useUniformColumns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/state/useAppStore";
@@ -31,6 +32,28 @@ function CommentsToggle() {
   );
 }
 
+/** Hides at once the shown columns that are empty or hold the same value in every row. Only there when there are some. */
+function HideUniformColumnsButton() {
+  const visibleFieldKeys = useAppStore((s) => s.activeProfile?.display.visibleFieldKeys);
+  const hideFields = useAppStore((s) => s.hideFields);
+  const uniformColumns = useUniformColumns();
+
+  const toHide = (visibleFieldKeys ?? []).filter((key) => uniformColumns.has(key));
+  if (toHide.length === 0) return null;
+
+  return (
+    <Button
+      variant="outline"
+      title="Hide the shown columns that are empty or have the same value in every row. Show them again from “Columns”."
+      onClick={() => hideFields(toHide)}
+    >
+      <EyeSlashIcon />
+      Hide empty &amp; same-value
+      <span className="text-muted-foreground">{toHide.length}</span>
+    </Button>
+  );
+}
+
 /** Search on the left; what's selected/hidden, column picking and export on the right. */
 export function TableToolbar() {
   return (
@@ -40,6 +63,7 @@ export function TableToolbar() {
         <SelectionChips />
         <CommentsToggle />
         <ViewMenu />
+        <HideUniformColumnsButton />
         <ColumnsPopover />
         <ExportMenu />
       </div>

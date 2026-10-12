@@ -37,7 +37,7 @@ export function parseRawRows(rows: RawRow[], config: ParsingConfig): ParsedDatas
 
   // Always prefer the keys a parsed Record actually ended up with over the
   // raw config.fieldNames: recordFromValues already applies the correct
-  // per-field fallback (config.fieldNames?.[i] ?? "Field N"), so this is
+  // per-field fallback (config.fieldNames?.[i] ?? "fieldN"), so this is
   // right whether fieldNames is absent, full, or only a partial prefix (a
   // built-in Profile may only name the fields that reliably stay aligned —
   // see builtInProfiles.ts). Using config.fieldNames directly here would

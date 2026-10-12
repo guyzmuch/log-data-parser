@@ -16,6 +16,7 @@ import { ColumnHeader } from "@/components/data-table/ColumnHeader";
 import { ValueBadge } from "@/components/data-table/ValueBadge";
 import { useArrayKeyByField } from "@/components/data-table/useArrayKeyByField";
 import { useColorFit } from "@/components/data-table/useColorFit";
+import { useUniformColumns } from "@/components/data-table/useUniformColumns";
 import { useDetectedPatterns } from "@/components/data-table/useDetectedPatterns";
 import { useVisibleRecords } from "@/components/data-table/useVisibleRecords";
 import { useWindowedRows } from "@/components/data-table/useWindowedRows";
@@ -328,6 +329,7 @@ export function DataTable() {
   const deselectAllVisible = useAppStore((s) => s.deselectAllVisible);
   const detectedByField = useDetectedPatterns();
   const colorFits = useColorFit();
+  const uniformColumns = useUniformColumns();
   const arrayKeyByField = useArrayKeyByField();
   const { shownRecords, visibleRecords, visibleIndexesInOrder, ordinalByIndex, visibleSelectedCount } =
     useVisibleRecords();
@@ -438,7 +440,10 @@ export function DataTable() {
     const header = Math.max(
       labelOf(key).length +
         HEADER_EXTRA_CH +
-        ((detectedByField[key]?.length ?? 0) + (colorFits.get(key)?.status === "good" ? 1 : 0)) * HINT_CHIP_CH,
+        ((detectedByField[key]?.length ?? 0) +
+          (colorFits.get(key)?.status === "good" ? 1 : 0) +
+          (uniformColumns.has(key) ? 1 : 0)) *
+          HINT_CHIP_CH,
       caption,
     );
     return Math.min(COLUMN_MAX_CH, Math.max(COLUMN_MIN_CH, valueLengths.get(key) ?? 0, header));
@@ -594,6 +599,7 @@ export function DataTable() {
                   fieldKey={key}
                   detected={detectedByField[key] ?? []}
                   colorFit={colorFits.get(key)}
+                  uniform={uniformColumns.get(key)}
                   isFirst={position === 0}
                   isLast={position === columnKeys.length - 1}
                 />

@@ -106,6 +106,8 @@ interface AppState {
   showAllFields: () => void;
   /** Hides every Field (the column order is kept). */
   hideAllFields: () => void;
+  /** Hides these Fields (each keeps its place in the column order). Used to hide the empty and same-value columns at once. */
+  hideFields: (keys: string[]) => void;
   /** Puts the column order back to natural: base columns as parsed, then Derived Fields as they were added. */
   resetFieldOrder: () => void;
   renameField: (key: string, label: string) => void;
@@ -416,6 +418,15 @@ export const useAppStore = create<AppState>((set, get) => {
         ...display,
         fieldOrder: currentFieldOrder(display, get().baseFieldNames),
         visibleFieldKeys: [],
+      }));
+    },
+
+    hideFields: (keys) => {
+      const toHide = new Set(keys);
+      updateDisplay((display) => ({
+        ...display,
+        fieldOrder: currentFieldOrder(display, get().baseFieldNames),
+        visibleFieldKeys: display.visibleFieldKeys.filter((key) => !toHide.has(key)),
       }));
     },
 

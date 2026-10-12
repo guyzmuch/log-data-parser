@@ -43,7 +43,7 @@ test("golden path: paste, split, derive, search, hide, export", async ({ page })
     await expect(dialog).toContainText("Auto-detected: comma");
 
     // Without "first row is a header" the first line is data and the columns are generic.
-    expect(await previewHeaders(page)).toEqual(["Field 1", "Field 2", "Field 3", "Field 4"]);
+    expect(await previewHeaders(page)).toEqual(["field1", "field2", "field3", "field4"]);
     await setCheckbox(page, "First row is a header", true);
     expect(await previewHeaders(page)).toEqual(BASE_HEADERS);
 

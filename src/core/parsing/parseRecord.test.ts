@@ -44,9 +44,9 @@ describe("parseRecord", () => {
   it("splits a line into generically-named Fields when there are no fieldNames", () => {
     const result = parseRecord({ index: 0, raw: "a,b,c" }, baseConfig());
     expect(result.fields).toEqual([
-      { key: "Field 1", value: "a" },
-      { key: "Field 2", value: "b" },
-      { key: "Field 3", value: "c" },
+      { key: "field1", value: "a" },
+      { key: "field2", value: "b" },
+      { key: "field3", value: "c" },
     ]);
   });
 
