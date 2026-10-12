@@ -49,7 +49,7 @@ export function DatasetInput() {
   async function loadSample(file: string) {
     setError("");
     try {
-      const response = await fetch(`/samples/${file}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/samples/${file}`);
       if (!response.ok) throw new Error(String(response.status));
       loadDataset(await response.text(), file);
     } catch {
