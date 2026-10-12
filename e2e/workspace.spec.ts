@@ -5,6 +5,7 @@ import {
   loadWithProfile,
   mainHeaders,
   mainRows,
+  openMenu,
   renameColumn,
   uploadSample,
   type WizardChoices,
@@ -84,13 +85,13 @@ test.describe("column header menu", () => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
 
     await headerCell(page, 0).getByRole("button", { name: /Column options/ }).click();
-    await expect(page.getByRole("menuitem", { name: /Parse as date.*detected/ })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /Extract JSON keys.*detected/ })).toHaveCount(0);
+    await expect(openMenu(page).getByRole("menuitem", { name: /Parse as date.*detected/ })).toBeVisible();
+    await expect(openMenu(page).getByRole("menuitem", { name: /Extract JSON keys.*detected/ })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
     await headerCell(page, 2).getByRole("button", { name: /Column options/ }).click();
-    await expect(page.getByRole("menuitem", { name: /Extract JSON keys.*detected/ })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /Parse as date.*detected/ })).toHaveCount(0);
+    await expect(openMenu(page).getByRole("menuitem", { name: /Extract JSON keys.*detected/ })).toBeVisible();
+    await expect(openMenu(page).getByRole("menuitem", { name: /Parse as date.*detected/ })).toHaveCount(0);
   });
 
   test("Rename column focuses the input with its text selected, so typing replaces the name", async ({ page }) => {
@@ -110,8 +111,8 @@ test.describe("column header menu", () => {
 
     await expect(headerCell(page, 1)).toContainText("from timestamp · date");
     await headerCell(page, 1).getByRole("button", { name: /Column options/ }).click();
-    await expect(page.getByRole("menuitem", { name: "Rename column" })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: /Parse as date/ })).toHaveCount(0);
+    await expect(openMenu(page).getByRole("menuitem", { name: "Rename column" })).toBeVisible();
+    await expect(openMenu(page).getByRole("menuitem", { name: /Parse as date/ })).toHaveCount(0);
   });
 });
 
@@ -179,20 +180,20 @@ test.describe("profile menu", () => {
     const builtIn = "CSV with header (built-in)";
 
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await expect(page.getByRole("menuitemradio", { name: builtIn, exact: true })).toHaveCount(1);
-    await page.getByRole("menuitem", { name: /Manage profiles/ }).click();
+    await expect(openMenu(page).getByRole("menuitemradio", { name: builtIn, exact: true })).toHaveCount(1);
+    await openMenu(page).getByRole("menuitem", { name: /Manage profiles/ }).click();
     await page.getByRole("button", { name: `Hide ${builtIn}` }).click();
     await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await expect(page.getByRole("menuitemradio", { name: builtIn, exact: true })).toHaveCount(0);
-    await expect(page.getByRole("menuitem", { name: /Manage profiles/ })).toContainText("1 hidden");
+    await expect(openMenu(page).getByRole("menuitemradio", { name: builtIn, exact: true })).toHaveCount(0);
+    await expect(openMenu(page).getByRole("menuitem", { name: /Manage profiles/ })).toContainText("1 hidden");
     // The chooser agrees.
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: builtIn, exact: true })).toHaveCount(0);
 
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await page.getByRole("menuitem", { name: /Manage profiles/ }).click();
+    await openMenu(page).getByRole("menuitem", { name: /Manage profiles/ }).click();
     await page.getByRole("button", { name: `Unhide ${builtIn}` }).click();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: builtIn, exact: true })).toHaveCount(1);
@@ -213,11 +214,11 @@ test.describe("export", () => {
     await expect(exportButton).toContainText("8 rows");
 
     await page.getByRole("button", { name: "Export scope" }).click();
-    await page.getByRole("menuitemradio", { name: /Excluding hidden/ }).click();
+    await openMenu(page).getByRole("menuitemradio", { name: /Excluding hidden/ }).click();
     await expect(exportButton).toContainText("6 rows");
 
     await page.getByRole("button", { name: "Export scope" }).click();
-    await page.getByRole("menuitemradio", { name: /All records/ }).click();
+    await openMenu(page).getByRole("menuitemradio", { name: /All records/ }).click();
     await expect(exportButton).toContainText("8 rows");
   });
 });

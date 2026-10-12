@@ -425,7 +425,6 @@ export function DataTable() {
   }
 
   const allVisibleSelected = visibleIndexesInOrder.length > 0 && visibleSelectedCount === visibleIndexesInOrder.length;
-  const headerCheckedState = allVisibleSelected ? true : visibleSelectedCount > 0 ? "indeterminate" : false;
 
   const labelOf = (key: string) => fieldLabels[key] ?? key;
   /** A nested table's column title: the key without its array's name ("info.trace[].line" → "line"). */
@@ -581,7 +580,8 @@ export function DataTable() {
             <TableHead className="sticky top-0 z-10 border-b bg-muted">
               <div className="flex items-center gap-2 pl-1">
                 <Checkbox
-                  checked={headerCheckedState}
+                  checked={allVisibleSelected}
+                  indeterminate={!allVisibleSelected && visibleSelectedCount > 0}
                   onCheckedChange={() =>
                     allVisibleSelected ? deselectAllVisible(visibleIndexesInOrder) : selectAllVisible(visibleIndexesInOrder)
                   }

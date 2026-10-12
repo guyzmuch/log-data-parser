@@ -37,24 +37,21 @@ function FilterPill({ filter }: { filter: FieldFilter }) {
       )}
     >
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            title={filter.disabled ? `${text} (disabled)` : text}
-            aria-label={`Filter ${text}`}
-            className={cn("min-w-0 truncate px-2 text-left outline-none hover:bg-black/5 focus-visible:ring-1 focus-visible:ring-ring", filter.disabled && "line-through")}
-          >
-            {text}
-          </button>
+        <DropdownMenuTrigger
+          title={filter.disabled ? `${text} (disabled)` : text}
+          aria-label={`Filter ${text}`}
+          className={cn("min-w-0 truncate px-2 text-left outline-none hover:bg-black/5 focus-visible:ring-1 focus-visible:ring-ring", filter.disabled && "line-through")}
+        >
+          {text}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onSelect={() => toggleNegation(filter.id)}>
+          <DropdownMenuItem onClick={() => toggleNegation(filter.id)}>
             {filter.negate ? "Include results" : "Exclude results"}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => toggleDisabled(filter.id)}>
+          <DropdownMenuItem onClick={() => toggleDisabled(filter.id)}>
             {filter.disabled ? "Re-enable" : "Temporarily disable"}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => removeFieldFilter(filter.id)}>Remove</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => removeFieldFilter(filter.id)}>Remove</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <button

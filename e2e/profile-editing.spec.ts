@@ -6,6 +6,7 @@ import {
   loadWithProfile,
   mainHeaders,
   mainRows,
+  openMenu,
   openWizard,
   renameColumn,
   uploadSample,
@@ -64,9 +65,9 @@ test("Save view on a built-in forks a copy instead of duplicating the built-in",
 
   // The built-in is still there exactly once, next to a user copy that is now the active profile.
   await page.getByRole("button", { name: /^Profile/ }).click();
-  await expect(page.getByRole("menuitemradio", { name: "CSV with header (built-in)", exact: true })).toHaveCount(1);
-  await expect(page.getByRole("menuitemradio", { name: "CSV with header (built-in) (copy)", exact: true })).toHaveCount(1);
-  await expect(page.getByRole("menuitemradio", { name: "CSV with header (built-in) (copy)", exact: true })).toBeChecked();
+  await expect(openMenu(page).getByRole("menuitemradio", { name: "CSV with header (built-in)", exact: true })).toHaveCount(1);
+  await expect(openMenu(page).getByRole("menuitemradio", { name: "CSV with header (built-in) (copy)", exact: true })).toHaveCount(1);
+  await expect(openMenu(page).getByRole("menuitemradio", { name: "CSV with header (built-in) (copy)", exact: true })).toBeChecked();
   await page.keyboard.press("Escape");
 
   // It survives a reload (it really is in localStorage under its own id).
@@ -105,7 +106,7 @@ test("'Hide selected' only acts on rows the filter currently shows", async ({ pa
   for (const i of [0, 1, 2]) await rowCheckboxes.nth(i).click();
   await expect(page.getByText("3 selected")).toBeVisible();
   await page.getByPlaceholder("Search visible columns…").fill("host-08");
-  await page.getByRole("radio", { name: "Filter" }).click();
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
 
   await expect(page.locator("main table tbody tr")).toHaveCount(1);
   // None of the selected rows is visible, so there is nothing to act on and no selection chip.

@@ -39,7 +39,7 @@ test("golden path: paste, split, derive, search, hide, export", async ({ page })
   await test.step("the wizard detects the delimiter and previews the columns", async () => {
     await page.getByRole("button", { name: /^New profile/ }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("radio", { name: "Comma", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(dialog.getByRole("button", { name: "Comma", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(dialog).toContainText("Auto-detected: comma");
 
     // Without "first row is a header" the first line is data and the columns are generic.

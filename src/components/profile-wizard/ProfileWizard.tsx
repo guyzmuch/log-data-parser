@@ -251,11 +251,10 @@ function WizardForm({ onOpenChange, datasetRawText, datasetName, initialProfile,
           <div className="grid gap-1.5">
             <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Delimiter</span>
             <ToggleGroup
-              type="single"
               variant="outline"
               spacing={0}
-              value={delimiter}
-              onValueChange={(value) => value && setDelimiter(value as Delimiter)}
+              value={[delimiter]}
+              onValueChange={([value]) => value && setDelimiter(value as Delimiter)}
               className="flex-wrap"
               aria-label="Delimiter"
             >

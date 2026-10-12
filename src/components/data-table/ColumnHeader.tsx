@@ -204,32 +204,28 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
           ))}
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label={`Column options for ${label}`}
-              className="ml-auto grid size-6 shrink-0 place-items-center text-muted-foreground outline-none hover:bg-border hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring aria-expanded:bg-border aria-expanded:text-foreground"
-            >
-              <DotsThreeVerticalIcon className="size-4" weight="bold" />
-            </button>
+          <DropdownMenuTrigger
+            aria-label={`Column options for ${label}`}
+            className="ml-auto grid size-6 shrink-0 place-items-center text-muted-foreground outline-none hover:bg-border hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring aria-expanded:bg-border aria-expanded:text-foreground"
+          >
+            <DotsThreeVerticalIcon className="size-4" weight="bold" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
             className="w-64"
-            onCloseAutoFocus={(event) => {
+            finalFocus={() => {
               // After "Rename column", focus the input (with its text selected) instead of handing
               // focus back to the menu trigger. It has to happen here: while the menu is open it
               // keeps focus trapped, so an autoFocus on mount gets pulled away.
-              if (keepFocusOffTrigger.current) {
-                event.preventDefault();
-                keepFocusOffTrigger.current = false;
-                renameInputRef.current?.focus();
-                renameInputRef.current?.select();
-              }
+              if (!keepFocusOffTrigger.current) return true;
+              keepFocusOffTrigger.current = false;
+              renameInputRef.current?.focus();
+              renameInputRef.current?.select();
+              return false;
             }}
           >
             <DropdownMenuItem
-              onSelect={() => {
+              onClick={() => {
                 keepFocusOffTrigger.current = true;
                 setRenaming(true);
               }}
@@ -237,11 +233,11 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
               <PencilSimpleIcon />
               Rename column
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => toggleFieldVisibility(fieldKey)}>
+            <DropdownMenuItem onClick={() => toggleFieldVisibility(fieldKey)}>
               <EyeSlashIcon />
               Hide column
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => toggleColumnOption(fieldKey, "secondLine")}>
+            <DropdownMenuItem onClick={() => toggleColumnOption(fieldKey, "secondLine")}>
               <ArrowElbowDownRightIcon />
               Show on a second line
             </DropdownMenuItem>
@@ -257,18 +253,18 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
             ) : (
               <DropdownMenuItem
                 className={cn(colorSuggested && suggest)}
-                onSelect={() => toggleColumnOption(fieldKey, "colorCode")}
+                onClick={() => toggleColumnOption(fieldKey, "colorCode")}
               >
                 <PaletteIcon />
                 {colorOn ? "Stop color-coding" : "Color-code values"}
                 {colorSuggested && detectedTag}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem disabled={isFirst} onSelect={() => moveFieldUp(fieldKey)}>
+            <DropdownMenuItem disabled={isFirst} onClick={() => moveFieldUp(fieldKey)}>
               <ArrowLeftIcon />
               Move left
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={isLast} onSelect={() => moveFieldDown(fieldKey)}>
+            <DropdownMenuItem disabled={isLast} onClick={() => moveFieldDown(fieldKey)}>
               <ArrowRightIcon />
               Move right
             </DropdownMenuItem>
@@ -277,12 +273,12 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
               <>
                 <DropdownMenuSeparator />
                 {/* The source column is usually hidden once derived from, so its date actions are offered here too. */}
-                <DropdownMenuItem onSelect={() => setTimezoneOpen(true)}>
+                <DropdownMenuItem onClick={() => setTimezoneOpen(true)}>
                   <GlobeIcon />
                   Add timezone…
                 </DropdownMenuItem>
                 {!sourceHasDateSplit && (
-                  <DropdownMenuItem onSelect={() => addDateTimeSplitDerivedFields(derivedSpec.sourceFieldKey)}>
+                  <DropdownMenuItem onClick={() => addDateTimeSplitDerivedFields(derivedSpec.sourceFieldKey)}>
                     <CalendarBlankIcon />
                     Split date and time
                     <span className="ml-auto text-xs text-muted-foreground">UTC</span>
@@ -311,7 +307,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className={cn(jsonDetected && !parsesJson && suggest)}
-                  onSelect={() => setJsonParsing(fieldKey, !parsesJson)}
+                  onClick={() => setJsonParsing(fieldKey, !parsesJson)}
                 >
                   <TreeStructureIcon />
                   {parsesJson ? "Stop parsing JSON" : "Parse JSON (all levels)"}
@@ -325,14 +321,14 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Derive new column</DropdownMenuLabel>
                 {hasZonedDate ? (
-                  <DropdownMenuItem onSelect={() => setTimezoneOpen(true)}>
+                  <DropdownMenuItem onClick={() => setTimezoneOpen(true)}>
                     <GlobeIcon />
                     Add timezone…
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
                     className={cn(detected.includes("date") && suggest)}
-                    onSelect={() => addDefaultDateDerivedFields(fieldKey)}
+                    onClick={() => addDefaultDateDerivedFields(fieldKey)}
                   >
                     <ClockIcon />
                     Parse as date
@@ -340,7 +336,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                   </DropdownMenuItem>
                 )}
                 {!hasDateSplit && (
-                  <DropdownMenuItem onSelect={() => addDateTimeSplitDerivedFields(fieldKey)}>
+                  <DropdownMenuItem onClick={() => addDateTimeSplitDerivedFields(fieldKey)}>
                     <CalendarBlankIcon />
                     Split date and time
                     <span className="ml-auto text-xs text-muted-foreground">UTC</span>
@@ -349,7 +345,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                 {!hasJson && !parsesJson && !jsonInfo && (
                   <DropdownMenuItem
                     className={cn(detected.includes("json") && suggest)}
-                    onSelect={() => addJsonKeyDerivedFields(fieldKey)}
+                    onClick={() => addJsonKeyDerivedFields(fieldKey)}
                   >
                     <BracketsCurlyIcon />
                     Extract JSON keys
@@ -359,7 +355,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                 {!hasUnescape && (
                   <DropdownMenuItem
                     className={cn(detected.includes("stringified-escapes") && suggest)}
-                    onSelect={() => addUnescapeDerivedField(fieldKey)}
+                    onClick={() => addUnescapeDerivedField(fieldKey)}
                   >
                     <BackspaceIcon />
                     Strip escape characters

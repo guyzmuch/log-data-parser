@@ -70,11 +70,11 @@ test.describe("Filter mode", () => {
     await searchFor(page, "error", "Filter");
     await expect(rowCount(page)).toHaveCount(4);
 
-    await page.getByRole("radio", { name: "Highlight" }).click();
+    await page.getByRole("button", { name: "Highlight", exact: true }).click();
     await expect(rowCount(page)).toHaveCount(8);
     await expect(page.getByPlaceholder("Search visible columns…")).toHaveValue("error");
 
-    await page.getByRole("radio", { name: "Filter" }).click();
+    await page.getByRole("button", { name: "Filter", exact: true }).click();
     await expect(rowCount(page)).toHaveCount(4);
   });
 });

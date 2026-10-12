@@ -5,6 +5,7 @@ import {
   exportCsvLines,
   hideRows,
   loadWithProfile,
+  openMenu,
   renameColumn,
   searchFor,
   type WizardChoices,
@@ -48,7 +49,7 @@ test.describe("CSV export scopes", () => {
     expect(hostsOf(await exportCsvLines(page))).toHaveLength(8);
 
     await page.getByRole("button", { name: "Export scope" }).click();
-    await expect(page.getByRole("menuitemradio", { name: /Matching filter/ })).toContainText("no filter: all");
+    await expect(openMenu(page).getByRole("menuitemradio", { name: /Matching filter/ })).toContainText("no filter: all");
   });
 
   test("the scope and the Filter combine with hidden rows", async ({ page }) => {

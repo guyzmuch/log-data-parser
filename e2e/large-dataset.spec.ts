@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { configureWizard, exportCsvLines, openWizard, saveWizard, searchFor, type WizardChoices } from "./helpers";
+import { configureWizard, exportCsvLines, openMenu, openWizard, saveWizard, searchFor, type WizardChoices } from "./helpers";
 
 test.use({ locale: "en-US", timezoneId: "UTC" });
 
@@ -126,7 +126,7 @@ test.describe(`a ${LINES.toLocaleString("en-US")}-line log`, () => {
     await searchFor(page, "", "Highlight");
 
     await page.locator("main thead th").nth(1).getByRole("button", { name: /Column options/ }).click();
-    await page.getByRole("menuitem", { name: /Parse as date/ }).click();
+    await openMenu(page).getByRole("menuitem", { name: /Parse as date/ }).click();
     await scrollBox(page).evaluate((box) => (box.scrollTop = box.scrollHeight));
     await expect(renderedRows(page).last().locator("td").nth(1)).toHaveText(timestampOf(LINES - 1));
   });

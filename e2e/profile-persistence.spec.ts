@@ -5,6 +5,7 @@ import {
   configureWizard,
   mainHeaders,
   mainRows,
+  openMenu,
   openWizard,
   renameColumn,
   saveWizard,
@@ -73,7 +74,7 @@ async function importProfileFile(page: Page, content: string) {
 async function exportProfilesFile(page: Page): Promise<string> {
   return captureDownload(page, async () => {
     await page.getByRole("button", { name: "More" }).click();
-    await page.getByRole("menuitem", { name: "Export your profiles" }).click();
+    await openMenu(page).getByRole("menuitem", { name: "Export your profiles" }).click();
   });
 }
 
@@ -106,7 +107,7 @@ test.describe("saved profiles survive a reload", () => {
     expect(await mainHeaders(page)).toEqual(headers);
     expect(await mainRows(page)).toEqual(rows);
     await expect(page.getByPlaceholder("Search visible columns…")).toHaveValue("error");
-    await expect(page.getByRole("radio", { name: "Filter" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("button", { name: "Filter", exact: true })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("changes that were not saved are gone after a reload", async ({ page }) => {
@@ -128,7 +129,7 @@ test.describe("saved profiles survive a reload", () => {
     const builtIn = "CSV with header (built-in)";
 
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await page.getByRole("menuitem", { name: /Manage profiles/ }).click();
+    await openMenu(page).getByRole("menuitem", { name: /Manage profiles/ }).click();
     await page.getByRole("button", { name: `Hide ${builtIn}` }).click();
     await page.keyboard.press("Escape");
 
@@ -160,7 +161,7 @@ test.describe("exporting profiles", () => {
   test("there is nothing to export until a profile has been saved", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "More" }).click();
-    await expect(page.getByRole("menuitem", { name: "Export your profiles" })).toHaveAttribute("aria-disabled", "true");
+    await expect(openMenu(page).getByRole("menuitem", { name: "Export your profiles" })).toHaveAttribute("aria-disabled", "true");
   });
 });
 

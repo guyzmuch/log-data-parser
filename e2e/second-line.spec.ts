@@ -5,6 +5,7 @@ import {
   loadWithProfile,
   mainHeaders,
   mainRows,
+  openMenu,
   openWizard,
   pasteDataset,
   saveWizard,
@@ -63,7 +64,7 @@ test("several columns can be on a second line; clicking one selects its record; 
   await expect(page.getByText("1 selected")).toBeVisible();
 
   await page.getByPlaceholder("Search visible columns…").fill("host-02");
-  await page.getByRole("radio", { name: "Filter" }).click();
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
   await expect(mainRowEls(page)).toHaveCount(1);
   await expect(extraLines(page)).toHaveCount(2);
 });
@@ -73,7 +74,7 @@ test("it is part of the view: saved with it, and other views are not affected", 
   await clickColumnAction(page, 2, "Show on a second line");
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitem", { name: "Save as new view…" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Save as new view…" }).click();
   await page.getByRole("textbox", { name: "View name" }).fill("Flat");
   await page.getByRole("button", { name: "Add view" }).click();
   await setSecondLine(page, "payload", false);
@@ -89,7 +90,7 @@ test("it is part of the view: saved with it, and other views are not affected", 
   await expect(extraLines(page)).toHaveCount(0);
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitemradio", { name: "Default" }).click();
+  await openMenu(page).getByRole("menuitemradio", { name: "Default" }).click();
   await expect(extraLines(page)).toHaveCount(8);
   expect(await mainHeaders(page)).toEqual(["timestamp", "host", "level"]);
 });

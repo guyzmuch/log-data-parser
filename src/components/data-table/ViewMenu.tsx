@@ -42,13 +42,11 @@ export function ViewMenu() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" aria-label={`View: ${active.name}`}>
-            <RowsIcon />
-            <span className="text-muted-foreground">View</span>
-            <span className="max-w-40 truncate">{active.name}</span>
-            <CaretDownIcon />
-          </Button>
+        <DropdownMenuTrigger render={<Button variant="outline" aria-label={`View: ${active.name}`} />}>
+          <RowsIcon />
+          <span className="text-muted-foreground">View</span>
+          <span className="max-w-40 truncate">{active.name}</span>
+          <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>Column layouts</DropdownMenuLabel>
@@ -60,11 +58,11 @@ export function ViewMenu() {
             ))}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => setNameTarget({ kind: "new" })}>Save as new view…</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setNameTarget({ kind: "rename", viewId: active.id, name: active.name })}>
+          <DropdownMenuItem onClick={() => setNameTarget({ kind: "new" })}>Save as new view…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setNameTarget({ kind: "rename", viewId: active.id, name: active.name })}>
             Rename this view…
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={views.length <= 1} onSelect={() => deleteView(active.id)}>
+          <DropdownMenuItem disabled={views.length <= 1} onClick={() => deleteView(active.id)}>
             Delete this view
           </DropdownMenuItem>
         </DropdownMenuContent>

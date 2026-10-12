@@ -9,6 +9,7 @@ import {
   loadWithProfile,
   mainHeaders,
   mainRows,
+  openMenu,
   openWizard,
   pasteDataset,
   previewHeaders,
@@ -98,7 +99,7 @@ test.describe("json-cell-pipe.log (ISO timestamp, raw JSON)", () => {
     // The new columns say what they come from, and the split is not offered again from them.
     await expect(headerCell(page, 0)).toContainText("from timestamp · date");
     await headerCell(page, 0).getByRole("button", { name: /Column options/ }).click();
-    await expect(page.getByRole("menuitem", { name: "Split date and time" })).toHaveCount(0);
+    await expect(openMenu(page).getByRole("menuitem", { name: "Split date and time" })).toHaveCount(0);
     await page.keyboard.press("Escape");
   });
 
@@ -290,8 +291,8 @@ test.describe("regressions", () => {
     await openWizard(page);
 
     // The wizard should be re-initialised for the new dataset: pipe detected, header toggle back off.
-    await expect.soft(page.getByRole("dialog").getByRole("radio", { name: "Pipe", exact: true })).toHaveAttribute(
-      "aria-checked",
+    await expect.soft(page.getByRole("dialog").getByRole("button", { name: "Pipe", exact: true })).toHaveAttribute(
+      "aria-pressed",
       "true",
     );
     await expect.soft(page.getByRole("dialog").getByRole("checkbox", { name: "First row is a header" })).not.toBeChecked();

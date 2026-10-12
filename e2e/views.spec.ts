@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { clickColumnAction, configureWizard, mainHeaders, openWizard, saveWizard, uploadSample, type WizardChoices } from "./helpers";
+import { clickColumnAction, configureWizard, mainHeaders, openMenu, openWizard, saveWizard, uploadSample, type WizardChoices } from "./helpers";
 
 test.use({ locale: "en-US", timezoneId: "UTC" });
 
@@ -17,12 +17,12 @@ async function createProfile(page: Page) {
 
 async function chooseView(page: Page, name: string) {
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitemradio", { name }).click();
+  await openMenu(page).getByRole("menuitemradio", { name }).click();
 }
 
 async function addView(page: Page, name: string) {
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitem", { name: "Save as new view…" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Save as new view…" }).click();
   await page.getByRole("textbox", { name: "View name" }).fill(name);
   await page.getByRole("button", { name: "Add view" }).click();
 }
@@ -59,15 +59,15 @@ test("a view can be renamed and deleted, but not the last one", async ({ page })
   await addView(page, "Second");
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitem", { name: "Rename this view…" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Rename this view…" }).click();
   await page.getByRole("textbox", { name: "View name" }).fill("Renamed");
   await page.getByRole("button", { name: "Rename", exact: true }).click();
   await expect(page.getByRole("button", { name: "View: Renamed" })).toBeVisible();
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitem", { name: "Delete this view" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Delete this view" }).click();
   await expect(page.getByRole("button", { name: "View: Default" })).toBeVisible();
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await expect(page.getByRole("menuitem", { name: "Delete this view" })).toBeDisabled();
+  await expect(openMenu(page).getByRole("menuitem", { name: "Delete this view" })).toBeDisabled();
 });

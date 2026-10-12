@@ -5,6 +5,7 @@ import {
   exportCsvLines,
   loadWithProfile,
   mainRows,
+  openMenu,
   searchFor,
   type WizardChoices,
 } from "./helpers";
@@ -74,13 +75,13 @@ test("several filters combine, and a pill can be flipped, disabled and removed",
 
   // Flip the level pill to "exclude".
   await pills(page).first().getByRole("button", { name: /^Filter / }).click();
-  await page.getByRole("menuitem", { name: "Exclude results" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Exclude results" }).click();
   await expect(pills(page).first()).toHaveText(`NOT level: ${level}`);
   expect(await mainRows(page)).toEqual(all.filter((row) => row[3] !== level && row[1] !== all[0][1]));
 
   // Disable it: the rows come back, the pill stays.
   await pills(page).first().getByRole("button", { name: /^Filter / }).click();
-  await page.getByRole("menuitem", { name: "Temporarily disable" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Temporarily disable" }).click();
   await expect(pills(page).first()).toHaveAttribute("data-disabled", "true");
   expect(await mainRows(page)).toEqual(all.filter((row) => row[1] !== all[0][1]));
 

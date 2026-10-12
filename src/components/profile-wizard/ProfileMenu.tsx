@@ -34,12 +34,10 @@ export function ProfileMenu() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <span className="text-muted-foreground">Profile</span>
-            <span className="max-w-48 truncate">{activeProfile ? activeProfile.name : "none selected"}</span>
-            <CaretDownIcon />
-          </Button>
+        <DropdownMenuTrigger render={<Button variant="outline" />}>
+          <span className="text-muted-foreground">Profile</span>
+          <span className="max-w-48 truncate">{activeProfile ? activeProfile.name : "none selected"}</span>
+          <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80">
           <DropdownMenuRadioGroup
@@ -71,8 +69,8 @@ export function ProfileMenu() {
             )}
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => openWizard("new")}>New profile…</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setManageOpen(true)}>
+          <DropdownMenuItem onClick={() => openWizard("new")}>New profile…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setManageOpen(true)}>
             Manage profiles…
             {hiddenCount > 0 && <span className="ml-auto text-xs text-muted-foreground">{hiddenCount} hidden</span>}
           </DropdownMenuItem>

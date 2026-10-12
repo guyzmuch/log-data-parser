@@ -109,14 +109,12 @@ export function TopBar() {
             </>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="More">
-                <DotsThreeIcon weight="bold" />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="More" />}>
+              <DotsThreeIcon weight="bold" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => importInputRef.current?.click()}>Import profiles…</DropdownMenuItem>
-              <DropdownMenuItem disabled={savedProfiles.length === 0} onSelect={handleExportAll}>
+              <DropdownMenuItem onClick={() => importInputRef.current?.click()}>Import profiles…</DropdownMenuItem>
+              <DropdownMenuItem disabled={savedProfiles.length === 0} onClick={handleExportAll}>
                 Export your profiles
               </DropdownMenuItem>
             </DropdownMenuContent>

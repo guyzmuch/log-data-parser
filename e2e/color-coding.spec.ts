@@ -4,6 +4,7 @@ import {
   headerCell,
   loadWithProfile,
   mainRows,
+  openMenu,
   openWizard,
   configureWizard,
   pasteDataset,
@@ -21,7 +22,7 @@ const badges = (page: Page) => page.locator("main tbody [data-color-badge]");
 const colorOf = (page: Page, text: string) =>
   page.locator("main tbody [data-color-badge]", { hasText: new RegExp(`^${text}$`) }).first().getAttribute("data-color-badge");
 
-async function openMenu(page: Page, columnIndex: number) {
+async function openColumnMenu(page: Page, columnIndex: number) {
   await headerCell(page, columnIndex).getByRole("button", { name: /Column options/ }).click();
 }
 
@@ -34,9 +35,9 @@ test("a column with a few different values is suggested, and color-coding gives 
   // Columns whose values are all different (timestamps, hosts) are not suggested, even though 8 is under the limit.
   await expect(headerCell(page, 0).getByTestId("color-hint")).toHaveCount(0);
   await expect(headerCell(page, 1).getByTestId("color-hint")).toHaveCount(0);
-  await openMenu(page, 3);
-  await expect(page.getByRole("menuitem", { name: /Color-code values.*detected/ })).toBeVisible();
-  await page.getByRole("menuitem", { name: /Color-code values/ }).click();
+  await openColumnMenu(page, 3);
+  await expect(openMenu(page).getByRole("menuitem", { name: /Color-code values.*detected/ })).toBeVisible();
+  await openMenu(page).getByRole("menuitem", { name: /Color-code values/ }).click();
 
   // Every cell of the column is a badge; same text -> same color, different text -> different color.
   await expect(badges(page)).toHaveCount(8);
@@ -54,9 +55,9 @@ test("a column with a few different values is suggested, and color-coding gives 
   expect(style).not.toBe("rgba(0, 0, 0, 0)");
 
   // Menu now offers to stop, and the hint chip is gone (it is already on).
-  await openMenu(page, 3);
-  await expect(page.getByRole("menuitem", { name: "Stop color-coding" })).toBeVisible();
-  await page.getByRole("menuitem", { name: "Stop color-coding" }).click();
+  await openColumnMenu(page, 3);
+  await expect(openMenu(page).getByRole("menuitem", { name: "Stop color-coding" })).toBeVisible();
+  await openMenu(page).getByRole("menuitem", { name: "Stop color-coding" }).click();
   await expect(badges(page)).toHaveCount(0);
 });
 
@@ -70,7 +71,7 @@ test("a column with too many different values is greyed out, with the reason on 
 
   // "id" has 20 different values (more than there are colors): disabled, explained, and no hint chip.
   await expect(headerCell(page, 0).getByTestId("color-hint")).toHaveCount(0);
-  await openMenu(page, 0);
+  await openColumnMenu(page, 0);
   const blocked = page.getByTestId("color-code-blocked");
   await expect(blocked).toHaveAttribute("title", /Too many different values/);
   await expect(blocked.getByRole("menuitem", { name: /Color-code values/ })).toBeDisabled();
@@ -79,7 +80,7 @@ test("a column with too many different values is greyed out, with the reason on 
 
   // "kind" has 2: still available.
   await expect(headerCell(page, 1).getByTestId("color-hint")).toBeVisible();
-  await openMenu(page, 1);
+  await openColumnMenu(page, 1);
   await expect(page.getByTestId("color-code-blocked")).toHaveCount(0);
 });
 
@@ -161,7 +162,7 @@ test("it is part of the view: saved with it, and other views keep their own", as
   await expect(badges(page)).toHaveCount(8);
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitem", { name: "Save as new view…" }).click();
+  await openMenu(page).getByRole("menuitem", { name: "Save as new view…" }).click();
   await page.getByRole("textbox", { name: "View name" }).fill("Plain");
   await page.getByRole("button", { name: "Add view" }).click();
   await clickColumnAction(page, 3, "Stop color-coding");
@@ -176,7 +177,7 @@ test("it is part of the view: saved with it, and other views keep their own", as
   await expect(badges(page)).toHaveCount(0);
 
   await page.getByRole("button", { name: /^View:/ }).click();
-  await page.getByRole("menuitemradio", { name: "Default" }).click();
+  await openMenu(page).getByRole("menuitemradio", { name: "Default" }).click();
   await expect(badges(page)).toHaveCount(8);
 });
 

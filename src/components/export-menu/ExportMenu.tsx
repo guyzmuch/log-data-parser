@@ -52,10 +52,8 @@ export function ExportMenu() {
         Export CSV · {rows.length} {rows.length === 1 ? "row" : "rows"}
       </Button>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Export scope" className="-ml-px">
-            <CaretDownIcon />
-          </Button>
+        <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="Export scope" className="-ml-px" />}>
+          <CaretDownIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Rows to export</DropdownMenuLabel>

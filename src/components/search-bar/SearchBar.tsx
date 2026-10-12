@@ -28,11 +28,10 @@ export function SearchBar() {
         />
       </div>
       <ToggleGroup
-        type="single"
         variant="outline"
         spacing={0}
-        value={mode}
-        onValueChange={(value) => value && setSearchState({ term, mode: value as SearchMode })}
+        value={[mode]}
+        onValueChange={([value]) => value && setSearchState({ term, mode: value as SearchMode })}
       >
         <ToggleGroupItem value="highlight">Highlight</ToggleGroupItem>
         <ToggleGroupItem value="filter">Filter</ToggleGroupItem>

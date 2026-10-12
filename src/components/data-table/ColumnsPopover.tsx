@@ -65,14 +65,12 @@ export function ColumnsPopover() {
 
   return (
     <Popover onOpenChange={(open) => !open && setQuery("")}>
-      <PopoverTrigger asChild>
-        <Button variant="outline">
-          <ColumnsIcon />
-          Columns
-          <span className="text-muted-foreground">
-            {visibleFieldKeys.length} of {rows.length}
-          </span>
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" />}>
+        <ColumnsIcon />
+        Columns
+        <span className="text-muted-foreground">
+          {visibleFieldKeys.length} of {rows.length}
+        </span>
       </PopoverTrigger>
       <PopoverContent className="w-80">
         <div className="relative mb-2">

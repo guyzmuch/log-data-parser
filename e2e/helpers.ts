@@ -5,7 +5,15 @@ import { expect, type Locator, type Page } from "@playwright/test";
 const SAMPLES_DIR = path.join(process.cwd(), "public", "samples");
 const FILE_INPUT = 'input[type="file"][accept=".csv,.tsv,.log,.txt"]';
 
-export type DelimiterLabel = "Comma" | "Tab" | "Pipe" | "Semicolon" | "Space";
+/**
+ * The open menu. A menu that was just closed stays in the page (marked data-closed) until its fade-out ends,
+ * so a page-wide menu item lookup right after opening another menu would find both.
+ */
+export function openMenu(page: Page): Locator {
+  return page.locator('[role="menu"]:not([data-closed])');
+}
+
+export type DelimiterLabel ="Comma" | "Tab" | "Pipe" | "Semicolon" | "Space";
 
 export interface WizardChoices {
   delimiter: DelimiterLabel;
@@ -53,7 +61,7 @@ export async function openWizard(page: Page) {
     await fromChooser.click();
   } else {
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await page.getByRole("menuitem", { name: /New profile/ }).click();
+    await openMenu(page).getByRole("menuitem", { name: /New profile/ }).click();
   }
   await expect(page.getByRole("dialog")).toBeVisible();
 }
@@ -65,7 +73,7 @@ export async function setCheckbox(page: Page, name: string, checked: boolean) {
 }
 
 export async function selectDelimiter(page: Page, label: DelimiterLabel) {
-  await page.getByRole("dialog").getByRole("radio", { name: label, exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: label, exact: true }).click();
 }
 
 export async function configureWizard(page: Page, choices: WizardChoices) {
@@ -108,7 +116,7 @@ export async function chooseProfile(page: Page, name: string) {
     await fromChooser.click();
   } else {
     await page.getByRole("button", { name: /^Profile/ }).click();
-    await page.getByRole("menuitemradio", { name, exact: true }).click();
+    await openMenu(page).getByRole("menuitemradio", { name, exact: true }).click();
   }
 }
 
@@ -199,7 +207,7 @@ async function openColumnMenu(page: Page, columnIndex: number) {
 /** Clicks an item in a column's header menu: "Parse as date", "Extract JSON keys", "Strip escape characters", … */
 export async function clickColumnAction(page: Page, columnIndex: number, action: string) {
   await openColumnMenu(page, columnIndex);
-  await page.getByRole("menuitem", { name: action }).click();
+  await openMenu(page).getByRole("menuitem", { name: action }).click();
 }
 
 export async function renameColumn(page: Page, columnIndex: number, label: string) {
@@ -224,7 +232,7 @@ export async function addTimezone(page: Page, columnIndex: number, timezone: str
 /** Types a search and picks Highlight or Filter mode. An empty term clears the search. */
 export async function searchFor(page: Page, term: string, mode: "Highlight" | "Filter" = "Highlight") {
   await page.getByPlaceholder("Search visible columns…").fill(term);
-  await page.getByRole("radio", { name: mode }).click();
+  await page.getByRole("button", { name: mode, exact: true }).click();
 }
 
 /** Selects the rows at these positions among the rendered rows (0 = first shown row) and hides them. */
@@ -236,7 +244,7 @@ export async function hideRows(page: Page, positions: number[]) {
 
 export async function chooseExportScope(page: Page, label: "All records" | "Excluding hidden" | "Matching filter") {
   await page.getByRole("button", { name: "Export scope" }).click();
-  await page.getByRole("menuitemradio", { name: new RegExp(label) }).click();
+  await openMenu(page).getByRole("menuitemradio", { name: new RegExp(label) }).click();
 }
 
 /** Runs `trigger` (which must start a download) and returns the downloaded file's text. */
