@@ -55,14 +55,12 @@ we should be able to parse easily a list of JSON, or an array of JSON. like in t
 parse stack trace to multiline info (example error log in kibana)
 default column name should not have space to easily rewrite them
 since we detect cell, maybe notify column that only have empty data
-
+update the type of method that shadcn is using. apparently I use radix, but it is depracated
+like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
  
 
 ## improvement seen while working
 
-update the type of method that shadcn is using. apparently I use radix, but it is depracated
-
-like in kibana, the historic of the search is saved in local storage for the user, and can be autocomplete
 
 when seeing this type of parsing that needs to be done via regex `10001 [global] [42] [10000]` we should proposed some regex rule to parse the data. the user could still right the regex by hand, or modify our suggestion.
 maybe make the parsing of field via regex
