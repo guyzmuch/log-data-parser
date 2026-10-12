@@ -21,9 +21,12 @@ export function isDerivedFieldSpec(value: unknown): value is DerivedFieldSpec {
         (spec.timezone === undefined || typeof spec.timezone === "string")
       );
     case "unescape":
+    case "base64":
       return true;
     case "json-key":
       return typeof spec.jsonKey === "string";
+    case "user-agent":
+      return spec.part === "browser" || spec.part === "browserVersion" || spec.part === "os" || spec.part === "device";
     default:
       return false;
   }

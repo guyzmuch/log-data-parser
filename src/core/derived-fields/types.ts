@@ -1,3 +1,5 @@
+import type { UserAgentPart } from "@/core/derived-fields/parseUserAgent";
+
 export type IanaTimeZone = string;
 
 /**
@@ -38,7 +40,22 @@ export interface JsonKeyDerivedFieldSpec {
   jsonKey: string;
 }
 
+/** Decodes a base64 value as UTF-8 text. A value that isn't base64 text is a Parse Error. */
+export interface Base64DerivedFieldSpec {
+  kind: "base64";
+  sourceFieldKey: string;
+}
+
+/** One part of a user agent string (browser, its version, OS, device type). One spec per part, see parseUserAgent. */
+export interface UserAgentDerivedFieldSpec {
+  kind: "user-agent";
+  sourceFieldKey: string;
+  part: UserAgentPart;
+}
+
 export type DerivedFieldSpec =
   | DateDerivedFieldSpec
   | UnescapeDerivedFieldSpec
-  | JsonKeyDerivedFieldSpec;
+  | JsonKeyDerivedFieldSpec
+  | Base64DerivedFieldSpec
+  | UserAgentDerivedFieldSpec;

@@ -68,17 +68,11 @@ test.describe("empty state and top bar", () => {
 });
 
 test.describe("column header menu", () => {
-  test("moves and hides a column", async ({ page }) => {
+  test("hides a column", async ({ page }) => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
 
-    await clickColumnAction(page, 1, "Move left");
-    expect(await mainHeaders(page)).toEqual(["host", "timestamp", "payload", "level"]);
-
-    await clickColumnAction(page, 2, "Move right");
-    expect(await mainHeaders(page)).toEqual(["host", "timestamp", "level", "payload"]);
-
-    await clickColumnAction(page, 3, "Hide column");
-    expect(await mainHeaders(page)).toEqual(["host", "timestamp", "level"]);
+    await clickColumnAction(page, 2, "Hide column");
+    expect(await mainHeaders(page)).toEqual(["timestamp", "host", "level"]);
   });
 
   test("offers the detected derivation first, marked as detected", async ({ page }) => {

@@ -16,7 +16,6 @@ import { MAX_COLOR_VALUES } from "@/core/display/colorFit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { hasColumnOption } from "@/core/profile/columnOptions";
 import { currentFieldOrder } from "@/core/profile/fieldOrder";
 import { cn } from "@/lib/utils";
@@ -43,10 +42,9 @@ export function ColumnsPopover() {
   const [overKey, setOverKey] = useState<string | null>(null);
 
   if (!activeProfile) return null;
-  const { visibleFieldKeys, fieldLabels, derivedFieldSelections } = activeProfile.display;
+  const { visibleFieldKeys, fieldLabels } = activeProfile.display;
 
   const labelOf = (key: string) => fieldLabels[key] ?? key;
-  const sourceByDerivedKey = new Map(derivedFieldSelections.map((spec) => [derivedFieldKey(spec), spec.sourceFieldKey]));
   const visible = new Set(visibleFieldKeys);
   const columnOptions = activeProfile.display.columnOptions;
   // The full column order: a hidden column stays where it is (dimmed) instead of dropping to the bottom.
@@ -103,7 +101,6 @@ export function ColumnsPopover() {
             const colorOn = hasColumnOption(columnOptions, key, "colorCode");
             const colorSuggested = fit?.status === "good" && !colorOn;
             const colorBlocked = fit?.status === "too-many" && !colorOn;
-            const source = sourceByDerivedKey.get(key);
             const uniform = uniformColumns.get(key);
             return (
               <li
@@ -198,9 +195,6 @@ export function ColumnsPopover() {
                     <PaletteIcon className="size-4" />
                   </button>
                 </span>
-                {source !== undefined && (
-                  <span className="shrink-0 text-[0.6875rem] text-muted-foreground">from {labelOf(source)}</span>
-                )}
               </li>
             );
           })}

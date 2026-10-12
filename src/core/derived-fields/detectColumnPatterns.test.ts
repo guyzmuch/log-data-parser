@@ -16,9 +16,9 @@ describe("detectColumnPatterns", () => {
     expect(detectColumnPatterns(["142", "89", "2350", "56"])).not.toContain("date");
   });
 
-  it("does not detect a stringified JSON column as JSON (it is reported as escaped chars)", () => {
+  it("detects a stringified JSON column as JSON, not as escaped chars", () => {
     const sample = ['{\\"user\\":\\"alice\\"}', '{\\"user\\":\\"bob\\"}'];
-    expect(detectColumnPatterns(sample)).toEqual(["stringified-escapes"]);
+    expect(detectColumnPatterns(sample)).toEqual(["json"]);
   });
 
   it("detects a JSON column", () => {

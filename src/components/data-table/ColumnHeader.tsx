@@ -3,10 +3,10 @@
 import { useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import {
   ArrowElbowDownRightIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
   BackspaceIcon,
+  BinaryIcon,
   BracketsCurlyIcon,
+  BrowserIcon,
   CalendarBlankIcon,
   ClockIcon,
   DotsThreeVerticalIcon,
@@ -46,6 +46,8 @@ const DERIVED_KIND_LABELS: Record<DerivedFieldSpec["kind"], string> = {
   date: "date",
   "json-key": "JSON",
   unescape: "unescaped",
+  base64: "base64 decoded",
+  "user-agent": "user agent",
 };
 
 interface RenameInputProps {
@@ -92,22 +94,20 @@ interface ColumnHeaderProps {
   colorFit?: ColorFit;
   /** Set when every value of the column is blank, or the same. */
   uniform?: UniformColumn;
-  isFirst: boolean;
-  isLast: boolean;
 }
 
 /** A column's title cell: its name, what was detected in it, and a menu with everything you can do to the column. */
-export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, isLast }: ColumnHeaderProps) {
+export function ColumnHeader({ fieldKey, detected, colorFit, uniform }: ColumnHeaderProps) {
   const activeProfile = useAppStore((s) => s.activeProfile);
   const toggleFieldVisibility = useAppStore((s) => s.toggleFieldVisibility);
   const toggleColumnOption = useAppStore((s) => s.toggleColumnOption);
-  const moveFieldUp = useAppStore((s) => s.moveFieldUp);
-  const moveFieldDown = useAppStore((s) => s.moveFieldDown);
   const renameField = useAppStore((s) => s.renameField);
   const addDefaultDateDerivedFields = useAppStore((s) => s.addDefaultDateDerivedFields);
   const addDateTimeSplitDerivedFields = useAppStore((s) => s.addDateTimeSplitDerivedFields);
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
   const addUnescapeDerivedField = useAppStore((s) => s.addUnescapeDerivedField);
+  const addBase64DerivedField = useAppStore((s) => s.addBase64DerivedField);
+  const addUserAgentDerivedFields = useAppStore((s) => s.addUserAgentDerivedFields);
   const setJsonParsing = useAppStore((s) => s.setJsonParsing);
   const setArrayMode = useAppStore((s) => s.setArrayMode);
   const jsonInfo = useAppStore((s) => s.jsonColumns[fieldKey]);
@@ -139,6 +139,8 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
     : false;
   const hasJson = fromThisField.some((spec) => spec.kind === "json-key");
   const hasUnescape = fromThisField.some((spec) => spec.kind === "unescape");
+  const hasBase64 = fromThisField.some((spec) => spec.kind === "base64");
+  const userAgentParts = fromThisField.filter((spec) => spec.kind === "user-agent").length;
   // The parsing rule's JSON option: offered on the columns parsing split, not on columns it produced.
   const parsesJson = activeProfile.parsing.jsonFieldKeys?.includes(fieldKey) === true;
   const jsonDetected = detected.includes("json") || detected.includes("json-in-text");
@@ -260,14 +262,6 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                 {colorSuggested && detectedTag}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem disabled={isFirst} onClick={() => moveFieldUp(fieldKey)}>
-              <ArrowLeftIcon />
-              Move left
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={isLast} onClick={() => moveFieldDown(fieldKey)}>
-              <ArrowRightIcon />
-              Move right
-            </DropdownMenuItem>
 
             {derivedSpec?.kind === "date" && (
               <>
@@ -360,6 +354,26 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform, isFirst, i
                     <BackspaceIcon />
                     Strip escape characters
                     {detected.includes("stringified-escapes") && detectedTag}
+                  </DropdownMenuItem>
+                )}
+                {!hasBase64 && (
+                  <DropdownMenuItem
+                    className={cn(detected.includes("base64") && suggest)}
+                    onClick={() => addBase64DerivedField(fieldKey)}
+                  >
+                    <BinaryIcon />
+                    Decode base64
+                    {detected.includes("base64") && detectedTag}
+                  </DropdownMenuItem>
+                )}
+                {userAgentParts < 4 && (
+                  <DropdownMenuItem
+                    className={cn(detected.includes("user-agent") && suggest)}
+                    onClick={() => addUserAgentDerivedFields(fieldKey)}
+                  >
+                    <BrowserIcon />
+                    Parse user agent
+                    {detected.includes("user-agent") && detectedTag}
                   </DropdownMenuItem>
                 )}
               </>

@@ -590,7 +590,7 @@ export function DataTable() {
                 <span className="text-xs font-medium text-muted-foreground">#</span>
               </div>
             </TableHead>
-            {columnKeys.map((key, position) => (
+            {columnKeys.map((key) => (
               <TableHead
                 key={key}
                 className={cn("sticky top-0 z-10 overflow-hidden border-b bg-muted px-3", isDerivedLike(key) && DERIVED_HEAD)}
@@ -600,8 +600,6 @@ export function DataTable() {
                   detected={detectedByField[key] ?? []}
                   colorFit={colorFits.get(key)}
                   uniform={uniformColumns.get(key)}
-                  isFirst={position === 0}
-                  isLast={position === columnKeys.length - 1}
                 />
                 <ResizeHandle fieldKey={key} label={labelOf(key)} />
               </TableHead>

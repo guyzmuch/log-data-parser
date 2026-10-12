@@ -71,7 +71,11 @@ test.describe("CSV export columns", () => {
     await loadWithProfile(page, "json-cell-pipe.log", CHOICES);
 
     await clickColumnAction(page, 2, "Hide column"); // payload
-    await clickColumnAction(page, 2, "Move left"); // level: timestamp, level, host
+    // Drag level before host in the Columns list: timestamp, level, host.
+    await page.getByRole("button", { name: /^Columns/ }).click();
+    const list = page.getByRole("list", { name: "Columns" });
+    await list.getByRole("listitem").filter({ hasText: /^level$/ }).dragTo(list.getByRole("listitem").filter({ hasText: /^host$/ }));
+    await page.keyboard.press("Escape");
     await renameColumn(page, 2, "Host name");
 
     const lines = await exportCsvLines(page);

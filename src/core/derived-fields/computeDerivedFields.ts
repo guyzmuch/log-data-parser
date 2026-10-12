@@ -1,7 +1,9 @@
 import type { Field } from "@/core/dataset/types";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
+import { decodeBase64Text } from "@/core/derived-fields/decodeBase64";
 import { stringifyJsonValue, tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
+import { parseUserAgent, type UserAgentInfo } from "@/core/derived-fields/parseUserAgent";
 import type { DateDerivedFieldSpec, DerivedFieldSpec, JsonKeyDerivedFieldSpec } from "@/core/derived-fields/types";
 import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 
@@ -12,6 +14,16 @@ import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 interface CellParses {
   date?: Date;
   json?: { value: Record<string, unknown> | undefined };
+  userAgent?: UserAgentInfo;
+}
+
+/** A blank cell stays blank; anything that isn't base64 text is a Parse Error. */
+function computeBase64(field: Field, key: string): Field {
+  if (field.value.trim() === "") return { key, value: "", sourceFieldKey: field.key };
+  const decoded = decodeBase64Text(field.value);
+  return decoded === undefined
+    ? { key, value: "", sourceFieldKey: field.key, parseError: true }
+    : { key, value: decoded, sourceFieldKey: field.key };
 }
 
 // Constructing an Intl.DateTimeFormat is slow, and a log can have 100k cells.
@@ -79,6 +91,12 @@ function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): F
       return { key, value: unescapeStringified(field.value), sourceFieldKey: field.key };
     case "json-key":
       return computeJsonKey(field, spec, key, parses);
+    case "base64":
+      return computeBase64(field, key);
+    case "user-agent":
+      // An unknown part is just blank: there's no wrong user agent, only ones that tell less.
+      parses.userAgent ??= parseUserAgent(field.value);
+      return { key, value: parses.userAgent[spec.part], sourceFieldKey: field.key };
   }
 }
 

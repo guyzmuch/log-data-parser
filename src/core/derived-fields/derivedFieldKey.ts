@@ -1,4 +1,12 @@
+import type { UserAgentPart } from "@/core/derived-fields/parseUserAgent";
 import type { DateDerivedFieldSpec, DerivedFieldSpec } from "@/core/derived-fields/types";
+
+const USER_AGENT_PART_LABELS: Record<UserAgentPart, string> = {
+  browser: "browser",
+  browserVersion: "browser version",
+  os: "OS",
+  device: "device",
+};
 
 function dateKey(spec: DateDerivedFieldSpec): string {
   switch (spec.representation) {
@@ -27,5 +35,9 @@ export function derivedFieldKey(spec: DerivedFieldSpec): string {
       return `${spec.sourceFieldKey} (unescaped)`;
     case "json-key":
       return `${spec.sourceFieldKey}.${spec.jsonKey}`;
+    case "base64":
+      return `${spec.sourceFieldKey} (decoded)`;
+    case "user-agent":
+      return `${spec.sourceFieldKey} (${USER_AGENT_PART_LABELS[spec.part]})`;
   }
 }

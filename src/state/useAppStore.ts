@@ -171,6 +171,10 @@ interface AppState {
   addUnescapeDerivedField: (sourceFieldKey: string) => void;
   /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if nothing in the sample parses as a JSON object. */
   addJsonKeyDerivedFields: (sourceFieldKey: string) => void;
+  /** Adds a Field's base64-decoded text as a Derived Field. Skipped if it already has one. */
+  addBase64DerivedField: (sourceFieldKey: string) => void;
+  /** Adds a user agent Field's browser, browser version, OS and device as four Derived Fields. Parts it already has are skipped. */
+  addUserAgentDerivedFields: (sourceFieldKey: string) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => {
@@ -603,6 +607,18 @@ export const useAppStore = create<AppState>((set, get) => {
 
       addDerivedFields(
         discoverJsonKeys(sampleValues).map((jsonKey): DerivedFieldSpec => ({ kind: "json-key", sourceFieldKey, jsonKey })),
+      );
+    },
+
+    addBase64DerivedField: (sourceFieldKey) => {
+      addDerivedFields([{ kind: "base64", sourceFieldKey }]);
+    },
+
+    addUserAgentDerivedFields: (sourceFieldKey) => {
+      addDerivedFields(
+        (["browser", "browserVersion", "os", "device"] as const).map(
+          (part): DerivedFieldSpec => ({ kind: "user-agent", sourceFieldKey, part }),
+        ),
       );
     },
 
