@@ -1,4 +1,5 @@
-const PURE_DIGITS = /^\d+$/;
+// Whole digits, optionally followed by 1 to 3 fractional digits after a dot or a comma (1782764351.123).
+const EPOCH_LIKE = /^(\d+)(?:[.,](\d{1,3}))?$/;
 
 const MONTH_OR_DAY_NAME =
   /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i;
@@ -32,12 +33,15 @@ const EPOCH_MAX_SECONDS = Date.UTC(EPOCH_LAST_YEAR, 0, 1) / 1000;
 export function parseFlexibleDate(value: string): Date {
   const trimmed = value.trim();
 
-  if (PURE_DIGITS.test(trimmed)) {
+  const epochMatch = EPOCH_LIKE.exec(trimmed);
+  if (epochMatch) {
     // Only realistic timestamps count. Short integers (ids, counts, durations, ports...)
     // must NOT read as dates in January 1970.
-    const asNumber = Number(trimmed);
-    if (asNumber >= EPOCH_MIN_SECONDS && asNumber < EPOCH_MAX_SECONDS) return new Date(asNumber * 1000);
-    if (asNumber >= EPOCH_MIN_SECONDS * 1000 && asNumber < EPOCH_MAX_SECONDS * 1000) return new Date(asNumber);
+    const whole = Number(epochMatch[1]);
+    const fraction = epochMatch[2] ? Number(`0.${epochMatch[2]}`) : 0;
+    if (whole >= EPOCH_MIN_SECONDS && whole < EPOCH_MAX_SECONDS) return new Date(Math.round((whole + fraction) * 1000));
+    // A fraction on a millisecond epoch is sub-millisecond precision; keep the millisecond.
+    if (whole >= EPOCH_MIN_SECONDS * 1000 && whole < EPOCH_MAX_SECONDS * 1000) return new Date(whole);
     return new Date(Number.NaN);
   }
 
@@ -46,5 +50,6 @@ export function parseFlexibleDate(value: string): Date {
   // it when it at least *looks* like a date.
   if (!LOOKS_LIKE_A_DATE.some((pattern) => pattern.test(trimmed))) return new Date(Number.NaN);
 
-  return new Date(trimmed);
+  // V8 only understands a dot before the fractional seconds, not the comma some log formats use.
+  return new Date(trimmed.replace(/(\d{2}:\d{2}:\d{2}),(\d+)/, "$1.$2"));
 }

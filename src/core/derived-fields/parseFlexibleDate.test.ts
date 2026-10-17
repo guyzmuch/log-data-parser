@@ -19,6 +19,26 @@ describe("parseFlexibleDate", () => {
     expect(date.toISOString()).toBe("2026-06-29T20:19:11.000Z");
   });
 
+  it("parses epoch seconds with 0 to 3 fractional digits after a dot or a comma", () => {
+    expect(parseFlexibleDate("1782764351").toISOString()).toBe("2026-06-29T20:19:11.000Z");
+    expect(parseFlexibleDate("1782764351.5").toISOString()).toBe("2026-06-29T20:19:11.500Z");
+    expect(parseFlexibleDate("1782764351.52").toISOString()).toBe("2026-06-29T20:19:11.520Z");
+    expect(parseFlexibleDate("1782764351.523").toISOString()).toBe("2026-06-29T20:19:11.523Z");
+    expect(parseFlexibleDate("1782764351,523").toISOString()).toBe("2026-06-29T20:19:11.523Z");
+    expect(parseFlexibleDate("1782764351598.7").toISOString()).toBe("2026-06-29T20:19:11.598Z");
+  });
+
+  it("rejects fractional numbers outside the epoch window or with more than 3 decimals", () => {
+    for (const value of ["1.5", "12345.67", "1782764351.1234", "1.2.3"]) {
+      expect(Number.isNaN(parseFlexibleDate(value).getTime()), value).toBe(true);
+    }
+  });
+
+  it("parses a comma before the fractional seconds of a date-time", () => {
+    expect(parseFlexibleDate("2026-01-15T12:30:00,123Z").toISOString()).toBe("2026-01-15T12:30:00.123Z");
+    expect(parseFlexibleDate("2026-01-15 12:30:00,5Z").toISOString()).toBe("2026-01-15T12:30:00.500Z");
+  });
+
   it("rejects short integers (ids, counts, durations) instead of reading them as 1970 dates", () => {
     for (const value of ["1", "2", "43", "42", "2350", "8080", "10321", "12345678"]) {
       expect(Number.isNaN(parseFlexibleDate(value).getTime()), value).toBe(true);
