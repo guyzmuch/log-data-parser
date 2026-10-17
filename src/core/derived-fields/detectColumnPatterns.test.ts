@@ -54,6 +54,21 @@ describe("detectColumnPatterns", () => {
     expect(detectColumnPatterns(['{"a":1}', '{"b":2}'])).not.toContain("key-value");
   });
 
+  it("detects full URLs, paths with a query string and plain paths", () => {
+    expect(detectColumnPatterns(["https://x.com/p?id=7", "http://localhost:3000/a"])).toContain("url");
+    expect(detectColumnPatterns(["/search?q=a&page=2", "/cart?item=1"])).toContain("url");
+    expect(detectColumnPatterns(["/checkout", "/login", "/api"])).toContain("url");
+  });
+
+  it("detects a URL column that has a few non-URL values, but not one that mostly lacks URLs", () => {
+    expect(detectColumnPatterns(["/search?q=a", "https://x.com/b", "/cart", "-"])).toContain("url");
+    expect(detectColumnPatterns(["-", "-", "n/a", "/cart"])).not.toContain("url");
+  });
+
+  it("does not detect plain text, dates or numbers as URLs", () => {
+    expect(detectColumnPatterns(["hello world", "error: failed", "01/15/2026"])).not.toContain("url");
+  });
+
   it("returns an empty array for an empty sample", () => {
     expect(detectColumnPatterns([])).toEqual([]);
   });

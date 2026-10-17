@@ -4,6 +4,7 @@ import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
 import { decodeBase64Text } from "@/core/derived-fields/decodeBase64";
 import { stringifyJsonValue, tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
 import { findKeyValueSet, type KeyValueSet } from "@/core/derived-fields/parseKeyValueObject";
+import { tryParseUrl, type ParsedUrl } from "@/core/derived-fields/parseUrl";
 import { parseUserAgent, type UserAgentInfo } from "@/core/derived-fields/parseUserAgent";
 import type {
   DateDerivedFieldSpec,
@@ -11,6 +12,8 @@ import type {
   JsonKeyDerivedFieldSpec,
   KeyValueKeyDerivedFieldSpec,
   KeyValueTextDerivedFieldSpec,
+  UrlPartDerivedFieldSpec,
+  UrlQueryKeyDerivedFieldSpec,
 } from "@/core/derived-fields/types";
 import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 
@@ -22,6 +25,7 @@ interface CellParses {
   date?: Date;
   json?: { value: Record<string, unknown> | undefined };
   keyValue?: { value: KeyValueSet | undefined };
+  url?: { value: ParsedUrl | undefined };
   userAgent?: UserAgentInfo;
 }
 
@@ -102,6 +106,21 @@ function computeKeyValue(
   return { key, value: spec.kind === "key-value-text" ? parsed.text : (parsed.pairs[spec.key] ?? ""), sourceFieldKey: field.key };
 }
 
+function computeUrl(
+  field: Field,
+  spec: UrlPartDerivedFieldSpec | UrlQueryKeyDerivedFieldSpec,
+  key: string,
+  parses: CellParses,
+): Field {
+  parses.url ??= { value: tryParseUrl(field.value) };
+  const parsed = parses.url.value;
+  // A part or parameter this URL doesn't have (no host, no query string...) is just empty; a Parse Error
+  // means the cell holds no URL at all.
+  if (!parsed) return { key, value: "", sourceFieldKey: field.key, parseError: true };
+  const value = spec.kind === "url-part" ? parsed[spec.part] : (parsed.params[spec.param] ?? "");
+  return { key, value, sourceFieldKey: field.key };
+}
+
 function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): Field {
   const key = derivedFieldKey(spec);
 
@@ -115,6 +134,9 @@ function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): F
     case "key-value-key":
     case "key-value-text":
       return computeKeyValue(field, spec, key, parses);
+    case "url-part":
+    case "url-query-key":
+      return computeUrl(field, spec, key, parses);
     case "base64":
       return computeBase64(field, key);
     case "user-agent":

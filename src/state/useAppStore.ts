@@ -4,6 +4,8 @@ import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { discoverJsonKeys } from "@/core/derived-fields/discoverJsonKeys";
 import { discoverKeyValueKeys } from "@/core/derived-fields/discoverKeyValueKeys";
+import { discoverUrlParams } from "@/core/derived-fields/discoverUrlParams";
+import { tryParseUrl, URL_PARTS } from "@/core/derived-fields/parseUrl";
 import { isValidTimeZone } from "@/core/derived-fields/isValidTimeZone";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
@@ -173,6 +175,8 @@ interface AppState {
   /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if nothing in the sample parses as a JSON object. */
   addJsonKeyDerivedFields: (sourceFieldKey: string) => void;
   addKeyValueKeyDerivedFields: (sourceFieldKey: string) => void;
+  /** Adds the URL's protocol, hostname, port, pathname, search and one column per query parameter. Parts no URL has are hidden. */
+  addUrlDerivedFields: (sourceFieldKey: string) => void;
   /** Adds a Field's base64-decoded text as a Derived Field. Skipped if it already has one. */
   addBase64DerivedField: (sourceFieldKey: string) => void;
   /** Adds a user agent Field's browser, browser version, OS and device as four Derived Fields. Parts it already has are skipped. */
@@ -192,7 +196,8 @@ export const useAppStore = create<AppState>((set, get) => {
    * or by a base column (e.g. a JSON key "a.b" colliding with a column literally named "a.b") — then
    * re-derives over the base Records and shows the new columns. No-op if nothing is new.
    */
-  function addDerivedFields(specs: DerivedFieldSpec[]) {
+  /** `hiddenKeys`: keys among the new Derived Fields that are added hidden. */
+  function addDerivedFields(specs: DerivedFieldSpec[], hiddenKeys: string[] = []) {
     const { activeProfile, baseFieldNames, records } = get();
     if (!activeProfile) return;
 
@@ -209,7 +214,7 @@ export const useAppStore = create<AppState>((set, get) => {
     const derivedFieldSelections = [...activeProfile.display.derivedFieldSelections, ...newSpecs];
     const newKeys = newSpecs.map(derivedFieldKey);
     const fieldOrder = currentFieldOrder(activeProfile.display, baseFieldNames).slice();
-    const shown = new Set([...activeProfile.display.visibleFieldKeys, ...newKeys]);
+    const shown = new Set([...activeProfile.display.visibleFieldKeys, ...newKeys.filter((key) => !hiddenKeys.includes(key))]);
 
     // Each new Derived Field goes right after its source column (and after the Derived Fields it
     // already has there), shown. The source is hidden the first time it gets one: usually only the
@@ -622,6 +627,26 @@ export const useAppStore = create<AppState>((set, get) => {
         { kind: "key-value-text", sourceFieldKey },
         ...discoverKeyValueKeys(sampleValues).map((key): DerivedFieldSpec => ({ kind: "key-value-key", sourceFieldKey, key })),
       ]);
+    },
+
+    addUrlDerivedFields: (sourceFieldKey) => {
+      const values = get().records.flatMap((record) =>
+        record.fields.filter((f) => f.key === sourceFieldKey).map((f) => f.value),
+      );
+      const urls = values.map(tryParseUrl);
+
+      const partSpecs = URL_PARTS.map((part): DerivedFieldSpec => ({ kind: "url-part", sourceFieldKey, part }));
+      // Keys are discovered on the first records, like for JSON.
+      const paramSpecs = discoverUrlParams(values.slice(0, JSON_KEY_SAMPLE_SIZE)).map(
+        (param): DerivedFieldSpec => ({ kind: "url-query-key", sourceFieldKey, param }),
+      );
+      // A part no URL has (no host, no port, no query string...) would be an empty column: added, but hidden.
+      const emptyParts = URL_PARTS.filter((part) => urls.every((url) => !url || url[part] === ""));
+
+      addDerivedFields(
+        [...partSpecs, ...paramSpecs],
+        emptyParts.map((part) => derivedFieldKey({ kind: "url-part", sourceFieldKey, part })),
+      );
     },
 
     addBase64DerivedField: (sourceFieldKey) => {

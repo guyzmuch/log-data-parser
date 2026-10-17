@@ -12,6 +12,7 @@ import {
   DotsThreeVerticalIcon,
   EyeSlashIcon,
   GlobeIcon,
+  LinkIcon,
   PaletteIcon,
   PencilSimpleIcon,
   TreeStructureIcon,
@@ -47,6 +48,8 @@ const DERIVED_KIND_LABELS: Record<DerivedFieldSpec["kind"], string> = {
   "json-key": "JSON",
   "key-value-key": "key=value",
   "key-value-text": "key=value text",
+  "url-part": "URL",
+  "url-query-key": "URL query",
   unescape: "unescaped",
   base64: "base64 decoded",
   "user-agent": "user agent",
@@ -108,6 +111,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform }: ColumnHe
   const addDateTimeSplitDerivedFields = useAppStore((s) => s.addDateTimeSplitDerivedFields);
   const addJsonKeyDerivedFields = useAppStore((s) => s.addJsonKeyDerivedFields);
   const addKeyValueKeyDerivedFields = useAppStore((s) => s.addKeyValueKeyDerivedFields);
+  const addUrlDerivedFields = useAppStore((s) => s.addUrlDerivedFields);
   const addUnescapeDerivedField = useAppStore((s) => s.addUnescapeDerivedField);
   const addBase64DerivedField = useAppStore((s) => s.addBase64DerivedField);
   const addUserAgentDerivedFields = useAppStore((s) => s.addUserAgentDerivedFields);
@@ -142,6 +146,7 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform }: ColumnHe
     : false;
   const hasJson = fromThisField.some((spec) => spec.kind === "json-key");
   const hasKeyValue = fromThisField.some((spec) => spec.kind === "key-value-key");
+  const hasUrl = fromThisField.some((spec) => spec.kind === "url-part" || spec.kind === "url-query-key");
   const hasUnescape = fromThisField.some((spec) => spec.kind === "unescape");
   const hasBase64 = fromThisField.some((spec) => spec.kind === "base64");
   const userAgentParts = fromThisField.filter((spec) => spec.kind === "user-agent").length;
@@ -358,6 +363,13 @@ export function ColumnHeader({ fieldKey, detected, colorFit, uniform }: ColumnHe
                     <BracketsCurlyIcon />
                     Extract key=value pairs
                     {detected.includes("key-value") && detectedTag}
+                  </DropdownMenuItem>
+                )}
+                {!hasUrl && (
+                  <DropdownMenuItem className={cn(detected.includes("url") && suggest)} onClick={() => addUrlDerivedFields(fieldKey)}>
+                    <LinkIcon />
+                    Parse URL
+                    {detected.includes("url") && detectedTag}
                   </DropdownMenuItem>
                 )}
                 {!hasUnescape && (

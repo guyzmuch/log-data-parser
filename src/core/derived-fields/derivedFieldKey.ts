@@ -39,6 +39,10 @@ export function derivedFieldKey(spec: DerivedFieldSpec): string {
       return `${spec.sourceFieldKey}.${spec.key}`;
     case "key-value-text":
       return `${spec.sourceFieldKey} (text)`;
+    case "url-part":
+      return `${spec.sourceFieldKey} (${spec.part})`;
+    case "url-query-key":
+      return `${spec.sourceFieldKey}.${spec.param}`;
     case "base64":
       return `${spec.sourceFieldKey} (decoded)`;
     case "user-agent":

@@ -1,3 +1,4 @@
+import type { UrlPart } from "@/core/derived-fields/parseUrl";
 import type { UserAgentPart } from "@/core/derived-fields/parseUserAgent";
 
 export type IanaTimeZone = string;
@@ -56,6 +57,20 @@ export interface KeyValueTextDerivedFieldSpec {
   sourceFieldKey: string;
 }
 
+/** One part (protocol, hostname, port, pathname, search) of the first URL or path in a source Field's value. See parseUrl. */
+export interface UrlPartDerivedFieldSpec {
+  kind: "url-part";
+  sourceFieldKey: string;
+  part: UrlPart;
+}
+
+/** One decoded query parameter (`?q=boots&page=2`) of that URL. One spec per discovered parameter. */
+export interface UrlQueryKeyDerivedFieldSpec {
+  kind: "url-query-key";
+  sourceFieldKey: string;
+  param: string;
+}
+
 /** Decodes a base64 value as UTF-8 text. A value that isn't base64 text is a Parse Error. */
 export interface Base64DerivedFieldSpec {
   kind: "base64";
@@ -75,5 +90,7 @@ export type DerivedFieldSpec =
   | JsonKeyDerivedFieldSpec
   | KeyValueKeyDerivedFieldSpec
   | KeyValueTextDerivedFieldSpec
+  | UrlPartDerivedFieldSpec
+  | UrlQueryKeyDerivedFieldSpec
   | Base64DerivedFieldSpec
   | UserAgentDerivedFieldSpec;

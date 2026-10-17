@@ -1,0 +1,13 @@
+timestamp|method|url|status|duration_ms
+2026-01-15T12:30:00.123Z|GET|https://shop.example.com/search?q=hiking+boots&page=2&sort=price_asc|200|84
+2026-01-15T12:30:01.456Z|GET|https://shop.example.com/search?q=rain%20jacket&page=1&category=outdoor&sort=rating|200|91
+2026-01-15T12:30:02.789Z|GET|/cart/add?sku=BT-4471&qty=2&utm_source=newsletter&utm_campaign=winter-sale|302|37
+2026-01-15T12:30:04.012Z|GET|/products/4471?utm_source=google&utm_medium=cpc&utm_campaign=winter-sale|200|66
+2026-01-15T12:30:05.345Z|GET|https://shop.example.com/search?q=socks&tag=wool&tag=merino&page=3|200|102
+2026-01-15T12:30:06.678Z|POST|/checkout/confirm?session=a1b2c3&coupon=SAVE10&debug|200|412
+2026-01-15T12:30:08.001Z|GET|/login?redirect=%2Faccount%2Forders%3Fstatus%3Dopen&lang=fr|200|55
+2026-01-15T12:30:09.334Z|GET|/health|200|3
+2026-01-15T12:30:10.667Z|GET|https://shop.example.com/search?q=100%25+cotton&page=1&sort=price_desc|200|88
+2026-01-15T12:30:12.000Z|DELETE|/api/cart/items?sku=BT-4471&reason=out+of+stock|204|29
+2026-01-15T12:30:13.250Z|GET|http://localhost:3000/dev/preview?feature=new-cart|200|18
+2026-01-15T12:30:14.500Z|GET|/checkout|200|47

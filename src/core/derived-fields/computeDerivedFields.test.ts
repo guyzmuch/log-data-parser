@@ -22,6 +22,49 @@ describe("computeDerivedFields", () => {
     expect(computeDerivedFields(field("nothing here"), specs)[0]).toMatchObject({ value: "", parseError: true });
   });
 
+  it("extracts the parts and query parameters of a URL", () => {
+    const specs: DerivedFieldSpec[] = [
+      { kind: "url-part", sourceFieldKey: "created", part: "protocol" },
+      { kind: "url-part", sourceFieldKey: "created", part: "hostname" },
+      { kind: "url-part", sourceFieldKey: "created", part: "port" },
+      { kind: "url-part", sourceFieldKey: "created", part: "pathname" },
+      { kind: "url-part", sourceFieldKey: "created", part: "search" },
+      { kind: "url-query-key", sourceFieldKey: "created", param: "q" },
+      { kind: "url-query-key", sourceFieldKey: "created", param: "page" },
+    ];
+    const results = computeDerivedFields(field("https://shop.example.com:8443/search?q=red+boots"), specs);
+    expect(results.map((f) => [f.key, f.value])).toEqual([
+      ["created (protocol)", "https"],
+      ["created (hostname)", "shop.example.com"],
+      ["created (port)", "8443"],
+      ["created (pathname)", "/search"],
+      ["created (search)", "?q=red+boots"],
+      ["created.q", "red boots"],
+      ["created.page", ""],
+    ]);
+  });
+
+  it("gives empty host parts and no Parse Error for a path, and empty parameters for a URL without a query string", () => {
+    const specs: DerivedFieldSpec[] = [
+      { kind: "url-part", sourceFieldKey: "created", part: "hostname" },
+      { kind: "url-part", sourceFieldKey: "created", part: "pathname" },
+      { kind: "url-query-key", sourceFieldKey: "created", param: "q" },
+    ];
+    const results = computeDerivedFields(field("/health"), specs);
+    expect(results.map((f) => f.value)).toEqual(["", "/health", ""]);
+    expect(results.some((f) => f.parseError)).toBe(false);
+  });
+
+  it("flags a Parse Error when the cell holds no URL at all", () => {
+    const specs: DerivedFieldSpec[] = [
+      { kind: "url-part", sourceFieldKey: "created", part: "pathname" },
+      { kind: "url-query-key", sourceFieldKey: "created", param: "q" },
+    ];
+    for (const result of computeDerivedFields(field("not a url"), specs)) {
+      expect(result).toMatchObject({ value: "", parseError: true });
+    }
+  });
+
   it("returns nothing for specs that don't target this field", () => {
     const specs: DerivedFieldSpec[] = [{ kind: "date", sourceFieldKey: "other", representation: "iso" }];
     expect(computeDerivedFields(field(KNOWN_INSTANT), specs)).toEqual([]);

@@ -1,3 +1,4 @@
+import { URL_PARTS } from "@/core/derived-fields/parseUrl";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 
 /**
@@ -28,6 +29,10 @@ export function isDerivedFieldSpec(value: unknown): value is DerivedFieldSpec {
       return typeof spec.jsonKey === "string";
     case "key-value-key":
       return typeof spec.key === "string";
+    case "url-part":
+      return typeof spec.part === "string" && (URL_PARTS as readonly string[]).includes(spec.part);
+    case "url-query-key":
+      return typeof spec.param === "string";
     case "user-agent":
       return spec.part === "browser" || spec.part === "browserVersion" || spec.part === "os" || spec.part === "device";
     default:
