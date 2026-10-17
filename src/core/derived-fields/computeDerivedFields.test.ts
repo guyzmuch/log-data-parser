@@ -10,6 +10,18 @@ function field(value: string): Field {
 }
 
 describe("computeDerivedFields", () => {
+  it("extracts a key from a key=value set; a missing key is empty, a cell without a set is a Parse Error", () => {
+    const specs: DerivedFieldSpec[] = [
+      { kind: "key-value-key", sourceFieldKey: "created", key: "job" },
+      { kind: "key-value-key", sourceFieldKey: "created", key: "region" },
+    ];
+    expect(computeDerivedFields(field('up{job="web"} 1'), specs)).toEqual([
+      { key: "created.job", value: "web", sourceFieldKey: "created" },
+      { key: "created.region", value: "", sourceFieldKey: "created" },
+    ]);
+    expect(computeDerivedFields(field("nothing here"), specs)[0]).toMatchObject({ value: "", parseError: true });
+  });
+
   it("returns nothing for specs that don't target this field", () => {
     const specs: DerivedFieldSpec[] = [{ kind: "date", sourceFieldKey: "other", representation: "iso" }];
     expect(computeDerivedFields(field(KNOWN_INSTANT), specs)).toEqual([]);

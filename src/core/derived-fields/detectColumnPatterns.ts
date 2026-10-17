@@ -1,11 +1,12 @@
 import { looksLikeBase64 } from "@/core/derived-fields/decodeBase64";
 import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
 import { tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
+import { tryParseKeyValueObject } from "@/core/derived-fields/parseKeyValueObject";
 import { looksLikeUserAgent } from "@/core/derived-fields/parseUserAgent";
 import { hasEscapeSequences } from "@/core/derived-fields/unescapeStringified";
 import { hasJsonInText } from "@/core/json/findEmbeddedJson";
 
-export type ColumnPatternKind = "date" | "json" | "json-in-text" | "stringified-escapes" | "base64" | "user-agent";
+export type ColumnPatternKind = "date" | "json" | "json-in-text" | "key-value" | "stringified-escapes" | "base64" | "user-agent";
 
 interface ColumnPatternDetector {
   kind: ColumnPatternKind;
@@ -17,6 +18,7 @@ const DETECTORS: ColumnPatternDetector[] = [
   // Stringified JSON (`{\"a\":1}`, `"{\"a\":1}"`) counts too: parsing it as JSON is what's wanted, not unescaping it.
   { kind: "json", test: (value) => tryParseJsonObjectLenient(value) !== undefined },
   { kind: "json-in-text", test: hasJsonInText },
+  { kind: "key-value", test: (value) => tryParseKeyValueObject(value) !== undefined },
   { kind: "stringified-escapes", test: hasEscapeSequences },
   { kind: "base64", test: looksLikeBase64 },
   { kind: "user-agent", test: looksLikeUserAgent },

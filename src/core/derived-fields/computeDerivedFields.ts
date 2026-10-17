@@ -3,8 +3,15 @@ import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { parseFlexibleDate } from "@/core/derived-fields/parseFlexibleDate";
 import { decodeBase64Text } from "@/core/derived-fields/decodeBase64";
 import { stringifyJsonValue, tryParseJsonObjectLenient } from "@/core/derived-fields/parseJsonObject";
+import { findKeyValueSet, type KeyValueSet } from "@/core/derived-fields/parseKeyValueObject";
 import { parseUserAgent, type UserAgentInfo } from "@/core/derived-fields/parseUserAgent";
-import type { DateDerivedFieldSpec, DerivedFieldSpec, JsonKeyDerivedFieldSpec } from "@/core/derived-fields/types";
+import type {
+  DateDerivedFieldSpec,
+  DerivedFieldSpec,
+  JsonKeyDerivedFieldSpec,
+  KeyValueKeyDerivedFieldSpec,
+  KeyValueTextDerivedFieldSpec,
+} from "@/core/derived-fields/types";
 import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 
 /**
@@ -14,6 +21,7 @@ import { unescapeStringified } from "@/core/derived-fields/unescapeStringified";
 interface CellParses {
   date?: Date;
   json?: { value: Record<string, unknown> | undefined };
+  keyValue?: { value: KeyValueSet | undefined };
   userAgent?: UserAgentInfo;
 }
 
@@ -81,6 +89,19 @@ function computeJsonKey(field: Field, spec: JsonKeyDerivedFieldSpec, key: string
   return { key, value: stringifyJsonValue(parsed[spec.jsonKey]), sourceFieldKey: field.key };
 }
 
+function computeKeyValue(
+  field: Field,
+  spec: KeyValueKeyDerivedFieldSpec | KeyValueTextDerivedFieldSpec,
+  key: string,
+  parses: CellParses,
+): Field {
+  parses.keyValue ??= { value: findKeyValueSet(field.value) };
+  const parsed = parses.keyValue.value;
+  // As for JSON: a key missing from this record is an empty value; a Parse Error means no `{key=value}` set at all.
+  if (!parsed) return { key, value: "", sourceFieldKey: field.key, parseError: true };
+  return { key, value: spec.kind === "key-value-text" ? parsed.text : (parsed.pairs[spec.key] ?? ""), sourceFieldKey: field.key };
+}
+
 function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): Field {
   const key = derivedFieldKey(spec);
 
@@ -91,6 +112,9 @@ function computeOne(field: Field, spec: DerivedFieldSpec, parses: CellParses): F
       return { key, value: unescapeStringified(field.value), sourceFieldKey: field.key };
     case "json-key":
       return computeJsonKey(field, spec, key, parses);
+    case "key-value-key":
+    case "key-value-text":
+      return computeKeyValue(field, spec, key, parses);
     case "base64":
       return computeBase64(field, key);
     case "user-agent":

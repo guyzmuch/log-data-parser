@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { parseDataset } from "@/core/parsing/parseDataset";
 import { createDefaultDisplayConfig, createProfile } from "@/core/profile/createProfile";
 import { BUILT_IN_PROFILES, isBuiltInProfile } from "@/core/profile/builtInProfiles";
@@ -146,6 +147,32 @@ describe("BUILT_IN_PROFILES", () => {
       const keys = records[0].fields.map((f) => f.key);
       expect(keys.slice(0, 5)).toEqual(["client_ip", "ident", "authuser", "timestamp_date", "timestamp_offset"]);
       expect(keys[5]).toBe("field6"); // the fragmenting quoted "request" field, left generic
+    });
+  });
+
+  describe("prometheus-same-metric", () => {
+    it("splits each line into labels, value and timestamp, then derives the metric name and one column per label", () => {
+      const profile = findBuiltIn("builtin:prometheus-same-metric");
+      const { records } = parseDataset(readSample("prometheus-same-metric.log"), profile.parsing);
+      expect(records).toHaveLength(10);
+
+      const derived = applyDerivedFields(records, profile.display.derivedFieldSelections);
+      const values = Object.fromEntries(derived[0].fields.map((f) => [f.key, f.value]));
+      expect(values).toMatchObject({
+        "metric_labels (text)": "http_requests_total",
+        value: "10482",
+        timestamp: "1768480200123",
+        "timestamp (local time)": new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium" }).format(
+          new Date(1768480200123),
+        ),
+        "metric_labels.job": "api",
+        "metric_labels.instance": "10.0.1.11:9100",
+        "metric_labels.method": "GET",
+        "metric_labels.status": "200",
+        "metric_labels.handler": "/users",
+        "metric_labels.env": "prod",
+      });
+      expect(derived.every((record) => record.fields.every((f) => !f.parseError))).toBe(true);
     });
   });
 

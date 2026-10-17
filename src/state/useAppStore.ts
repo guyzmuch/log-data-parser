@@ -3,6 +3,7 @@ import type { Dataset, ParsedRecord } from "@/core/dataset/types";
 import { applyDerivedFields } from "@/core/derived-fields/applyDerivedFields";
 import { derivedFieldKey } from "@/core/derived-fields/derivedFieldKey";
 import { discoverJsonKeys } from "@/core/derived-fields/discoverJsonKeys";
+import { discoverKeyValueKeys } from "@/core/derived-fields/discoverKeyValueKeys";
 import { isValidTimeZone } from "@/core/derived-fields/isValidTimeZone";
 import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import { parseDataset } from "@/core/parsing/parseDataset";
@@ -171,6 +172,7 @@ interface AppState {
   addUnescapeDerivedField: (sourceFieldKey: string) => void;
   /** Discovers JSON keys from the Field's current values and adds one Derived Field per key. No-op if nothing in the sample parses as a JSON object. */
   addJsonKeyDerivedFields: (sourceFieldKey: string) => void;
+  addKeyValueKeyDerivedFields: (sourceFieldKey: string) => void;
   /** Adds a Field's base64-decoded text as a Derived Field. Skipped if it already has one. */
   addBase64DerivedField: (sourceFieldKey: string) => void;
   /** Adds a user agent Field's browser, browser version, OS and device as four Derived Fields. Parts it already has are skipped. */
@@ -608,6 +610,18 @@ export const useAppStore = create<AppState>((set, get) => {
       addDerivedFields(
         discoverJsonKeys(sampleValues).map((jsonKey): DerivedFieldSpec => ({ kind: "json-key", sourceFieldKey, jsonKey })),
       );
+    },
+
+    addKeyValueKeyDerivedFields: (sourceFieldKey) => {
+      const sampleValues = get()
+        .records.slice(0, JSON_KEY_SAMPLE_SIZE)
+        .flatMap((record) => record.fields.filter((f) => f.key === sourceFieldKey).map((f) => f.value));
+
+      // The text around the set (metric name, value, timestamp...) gets its own column, first.
+      addDerivedFields([
+        { kind: "key-value-text", sourceFieldKey },
+        ...discoverKeyValueKeys(sampleValues).map((key): DerivedFieldSpec => ({ kind: "key-value-key", sourceFieldKey, key })),
+      ]);
     },
 
     addBase64DerivedField: (sourceFieldKey) => {

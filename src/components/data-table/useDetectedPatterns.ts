@@ -9,6 +9,7 @@ export const PATTERN_LABELS: Record<ColumnPatternKind, string> = {
   date: "date",
   json: "JSON",
   "json-in-text": "JSON in text",
+  "key-value": "key=value",
   "stringified-escapes": "escaped chars",
   base64: "base64",
   "user-agent": "user agent",

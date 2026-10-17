@@ -22,9 +22,12 @@ export function isDerivedFieldSpec(value: unknown): value is DerivedFieldSpec {
       );
     case "unescape":
     case "base64":
+    case "key-value-text":
       return true;
     case "json-key":
       return typeof spec.jsonKey === "string";
+    case "key-value-key":
+      return typeof spec.key === "string";
     case "user-agent":
       return spec.part === "browser" || spec.part === "browserVersion" || spec.part === "os" || spec.part === "device";
     default:

@@ -1,0 +1,10 @@
+http_requests_total{job="api",instance="10.0.1.11:9100",method="GET",status="200",env="prod"} 10482 1768480200123
+node_cpu_seconds_total{job="node",instance="10.0.3.31:9100",cpu="0",mode="idle",env="prod"} 884213.55 1768480200456
+node_memory_MemAvailable_bytes{job="node",instance="10.0.3.31:9100",env="prod",region="eu-west-1"} 4187123712 1768480215456
+node_filesystem_avail_bytes{job="node",instance="10.0.3.32:9100",device="/dev/sda1",mountpoint="/",fstype="ext4",env="staging"} 52428800000 1768480215789
+http_request_duration_seconds_bucket{job="web",instance="10.0.2.21:9100",handler="/login",le="0.5",env="prod"} 3921 1768480230123
+process_open_fds{job="api",instance="10.0.1.12:9100",env="prod",region="eu-west-1"} 187 1768480230456
+kafka_consumergroup_lag{job="kafka",instance="10.0.4.41:9308",topic="orders",partition="2",group="billing",env="prod"} 1534 1768480245789
+go_goroutines{job="api",instance="10.0.1.13:9100",env="staging",version="v2.4.1"} 96 1768480245999
+up{job="web",instance="10.0.2.22:9100",env="prod"} 1 1768480260123
+redis_connected_clients{job="redis",instance="10.0.5.51:9121",role="master",db="0",env="prod",region="us-east-1"} 42 1768480260456

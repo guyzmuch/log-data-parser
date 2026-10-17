@@ -1,3 +1,4 @@
+import type { DerivedFieldSpec } from "@/core/derived-fields/types";
 import type { Profile } from "@/core/profile/types";
 
 /** Ids of built-in Profiles all share this prefix — see Built-in Profile in CONTEXT.md. */
@@ -124,6 +125,56 @@ export const BUILT_IN_PROFILES: Profile[] = [
       fieldNames: ["client_ip", "ident", "authuser", "timestamp_date", "timestamp_offset"],
     },
     display: emptyDisplay(),
+    createdAt: FIXED_TIMESTAMP,
+    updatedAt: FIXED_TIMESTAMP,
+  },
+  {
+    id: `${BUILT_IN_ID_PREFIX}prometheus-same-metric`,
+    name: "Prometheus text format — one metric (built-in)",
+    parsing: {
+      kind: "delimiter",
+      // Split on spaces into "name{labels}", value, timestamp. Approximate: a label value containing a space
+      // would fragment the line (quote-aware splitting only handles a quote at the start of a cell).
+      // The Derived Fields below then split "name{labels}" into the metric name and one column per label.
+      delimiter: " ",
+      hasHeaderRow: false,
+      stripQuotes: false,
+      trimBoundaryPartials: false,
+      expectedFieldCount: 0,
+      fieldNames: ["metric_labels", "value", "timestamp"],
+    },
+    display: {
+      // "metric_labels" is hidden: the metric name and the label columns replace it.
+      visibleFieldKeys: [
+        "metric_labels (text)",
+        "value",
+        "timestamp (local time)",
+        "metric_labels.job",
+        "metric_labels.instance",
+        "metric_labels.method",
+        "metric_labels.status",
+        "metric_labels.handler",
+        "metric_labels.env",
+      ],
+      fieldLabels: {
+        "timestamp (local time)": "time",
+        "metric_labels (text)": "metric",
+        "metric_labels.job": "job",
+        "metric_labels.instance": "instance",
+        "metric_labels.method": "method",
+        "metric_labels.status": "status",
+        "metric_labels.handler": "handler",
+        "metric_labels.env": "env",
+      },
+      derivedFieldSelections: [
+        // Only the local time: the raw epoch "timestamp" and an ISO column are left out.
+        { kind: "date", sourceFieldKey: "timestamp", representation: "timezone" },
+        { kind: "key-value-text", sourceFieldKey: "metric_labels" },
+        ...["job", "instance", "method", "status", "handler", "env"].map(
+          (key): DerivedFieldSpec => ({ kind: "key-value-key", sourceFieldKey: "metric_labels", key }),
+        ),
+      ],
+    },
     createdAt: FIXED_TIMESTAMP,
     updatedAt: FIXED_TIMESTAMP,
   },

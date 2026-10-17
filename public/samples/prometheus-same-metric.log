@@ -1,0 +1,10 @@
+http_requests_total{job="api",instance="10.0.1.11:9100",method="GET",status="200",handler="/users",env="prod"} 10482 1768480200123
+http_requests_total{job="api",instance="10.0.1.11:9100",method="POST",status="201",handler="/users",env="prod"} 2310 1768480200123
+http_requests_total{job="api",instance="10.0.1.12:9100",method="GET",status="200",handler="/orders",env="prod"} 8841 1768480215123
+http_requests_total{job="api",instance="10.0.1.12:9100",method="GET",status="404",handler="/orders",env="prod"} 57 1768480215123
+http_requests_total{job="api",instance="10.0.1.13:9100",method="DELETE",status="204",handler="/sessions",env="staging"} 413 1768480230123
+http_requests_total{job="api",instance="10.0.1.13:9100",method="GET",status="500",handler="/health",env="staging"} 12 1768480230123
+http_requests_total{job="web",instance="10.0.2.21:9100",method="GET",status="200",handler="/",env="prod"} 50931 1768480245123
+http_requests_total{job="web",instance="10.0.2.21:9100",method="GET",status="304",handler="/static",env="prod"} 21874 1768480245123
+http_requests_total{job="web",instance="10.0.2.22:9100",method="POST",status="502",handler="/login",env="prod"} 9 1768480260123
+http_requests_total{job="web",instance="10.0.2.22:9100",method="PUT",status="200",handler="/profile",env="staging"} 640 1768480260123

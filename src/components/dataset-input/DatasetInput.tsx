@@ -15,6 +15,7 @@ const SAMPLES = [
   { file: "linux-syslog.log", label: "Linux syslog", hint: "space" },
   { file: "aws-alb-access-log.log", label: "AWS ALB access log", hint: "space" },
   { file: "apache-combined-logstash.log", label: "Apache / Nginx access log", hint: "space" },
+  { file: "prometheus-same-metric.log", label: "Prometheus metrics (one metric)", hint: "key=value" },
 ];
 
 /** The empty state: open a file, drop one, paste text, or try a sample. */

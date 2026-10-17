@@ -48,6 +48,12 @@ describe("detectColumnPatterns", () => {
     expect(detectColumnPatterns(["2026-01-15T12:30:00.000Z", "", "2026-01-16T08:00:00.000Z"])).toContain("date");
   });
 
+  it("detects key=value label sets, bare or inside a Prometheus line", () => {
+    expect(detectColumnPatterns(['{foo="bar",count=34}', '{foo="baz",count=2}'])).toContain("key-value");
+    expect(detectColumnPatterns(['up{job="web",env="prod"} 1 1768480260123'])).toContain("key-value");
+    expect(detectColumnPatterns(['{"a":1}', '{"b":2}'])).not.toContain("key-value");
+  });
+
   it("returns an empty array for an empty sample", () => {
     expect(detectColumnPatterns([])).toEqual([]);
   });

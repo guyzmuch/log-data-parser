@@ -40,6 +40,22 @@ export interface JsonKeyDerivedFieldSpec {
   jsonKey: string;
 }
 
+/**
+ * Extracts one key from the first `{key="value",count=34}` set of a source Field's value (Prometheus labels, or
+ * any JSON-like braces using `=`). One spec per discovered key — see discoverKeyValueKeys.ts.
+ */
+export interface KeyValueKeyDerivedFieldSpec {
+  kind: "key-value-key";
+  sourceFieldKey: string;
+  key: string;
+}
+
+/** The text of a source Field outside its `{key=value}` set, before and after joined: the Prometheus metric name, value and timestamp. */
+export interface KeyValueTextDerivedFieldSpec {
+  kind: "key-value-text";
+  sourceFieldKey: string;
+}
+
 /** Decodes a base64 value as UTF-8 text. A value that isn't base64 text is a Parse Error. */
 export interface Base64DerivedFieldSpec {
   kind: "base64";
@@ -57,5 +73,7 @@ export type DerivedFieldSpec =
   | DateDerivedFieldSpec
   | UnescapeDerivedFieldSpec
   | JsonKeyDerivedFieldSpec
+  | KeyValueKeyDerivedFieldSpec
+  | KeyValueTextDerivedFieldSpec
   | Base64DerivedFieldSpec
   | UserAgentDerivedFieldSpec;
